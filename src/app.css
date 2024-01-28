@@ -1,0 +1,17 @@
+@import url('https://fonts.googleapis.com/css2?family=Praise&family=Gabarito:wght@400;700;900&family=Shadows+Into+Light&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		font-family: 'Gabarito', sans-serif;
+	}
+}
+
+@layer components {
+	.btn {
+		@apply rounded-2xl;
+	}
+}

@@ -1,0 +1,48 @@
+{
+	"name": "@matteopolak/website",
+	"version": "3.1.1",
+	"private": true,
+	"type": "module",
+	"license": "MIT",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "eslint ."
+	},
+	"devDependencies": {
+		"@iconify-json/bxl": "^1.1.10",
+		"@iconify-json/devicon-plain": "^1.1.34",
+		"@iconify-json/mdi": "^1.1.64",
+		"@iconify-json/simple-icons": "^1.1.89",
+		"@sveltejs/adapter-cloudflare": "^4.1.0",
+		"@sveltejs/enhanced-img": "^0.1.8",
+		"@sveltejs/kit": "^2.4.1",
+		"@sveltejs/vite-plugin-svelte": "^3.0.1",
+		"@tailwindcss/typography": "^0.5.10",
+		"@typescript-eslint/eslint-plugin": "^6.19.0",
+		"@typescript-eslint/parser": "^6.19.0",
+		"autoprefixer": "^10.4.17",
+		"eslint": "^8.56.0",
+		"eslint-plugin-svelte": "^2.35.1",
+		"mdsvex": "^0.11.0",
+		"postcss": "^8.4.33",
+		"postcss-load-config": "^5.0.2",
+		"svelte": "^4.2.9",
+		"svelte-check": "^3.6.3",
+		"svelte-preprocess": "^5.1.3",
+		"tailwindcss": "^3.4.1",
+		"tslib": "^2.6.2",
+		"typescript": "^5.3.3",
+		"vite": "^5.0.12"
+	},
+	"dependencies": {
+		"daisyui": "^4.6.0",
+		"gsap": "^3.12.5",
+		"shiki": "^0.14.7",
+		"svelte-reveal": "^0.7.0",
+		"unplugin-icons": "^0.18.2"
+	}
+}
