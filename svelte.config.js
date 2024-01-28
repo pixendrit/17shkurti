@@ -1,5 +1,5 @@
 import preprocess from "svelte-preprocess";
-import adapter from "@sveltejs/adapter-cloudflare";
+import adapter from '@sveltejs/adapter-netlify';
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 import { mdsvex, escapeSvelte } from "mdsvex";
 import shiki from 'shiki';
@@ -23,7 +23,9 @@ const config = {
 		vitePreprocess(),
 	],
 	kit: {
-		adapter: adapter(),
+		adapter: adapter({
+			edge: true
+		}),
 	},
 	extensions: [
 		'.svelte',
