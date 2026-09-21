@@ -1,19 +1,7 @@
-<script lang="ts">
-	import { projects } from '$lib/projects';
-
-	import HorizontalScroll from '$lib/components/HorizontalScroll.svelte';
-	import IntroAnimation from '$lib/components/IntroAnimation.svelte';
-	import Project from '$lib/components/Project.svelte';
-</script>
-
-<div id="smooth-wrapper">
-	<div id="smooth-content">
-		<IntroAnimation />
-
-		<HorizontalScroll id="projects">
-			{#each projects as project}
-				<Project {project} />
-			{/each}
-		</HorizontalScroll>
-	</div>
-</div>
+<section class="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
+	<h1 class="text-xl font-semibold">Nothing here yet</h1>
+	<p class="mt-2 text-sm text-slate-600">
+		This is a fresh SvelteKit project. Start building in
+		<code class="rounded bg-slate-100 px-1.5 py-0.5 text-slate-800">src/routes/+page.svelte</code>.
+	</p>
+</section>
