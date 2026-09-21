@@ -22,10 +22,11 @@ Thumbs.db
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
-# Local database and secrets
-data/
-*.db
-*.db-wal
-*.db-shm
+# Secrets
 .env
 !.env.example
+
+# Local scratch database from the old server version.
+# Anchored to the root: an unanchored `data/` would also match src/lib/data/.
+/data/
+*.db
