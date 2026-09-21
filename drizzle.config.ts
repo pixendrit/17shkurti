@@ -1,8 +1,10 @@
 import { defineConfig } from 'drizzle-kit';
 
+const url = process.env.DATABASE_URL ?? 'file:./data/hijeshi.db';
+
 export default defineConfig({
 	schema: './src/lib/server/db/schema.ts',
 	out: './drizzle',
-	dialect: 'sqlite',
-	dbCredentials: { url: process.env.DATABASE_PATH ?? './data/hijeshi.db' }
+	dialect: url.startsWith('libsql://') || url.startsWith('https://') ? 'turso' : 'sqlite',
+	dbCredentials: { url, authToken: process.env.DATABASE_AUTH_TOKEN }
 });

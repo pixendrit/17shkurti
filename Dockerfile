@@ -1,12 +1,6 @@
 # ---- build ----------------------------------------------------------------
 FROM node:22-bookworm-slim AS build
 WORKDIR /app
-
-# better-sqlite3 compiles a native addon, so the build stage needs a toolchain.
-RUN apt-get update && apt-get install -y --no-install-recommends \
-	python3 make g++ ca-certificates \
-	&& rm -rf /var/lib/apt/lists/*
-
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
@@ -20,7 +14,6 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Same base image as the build stage, so the compiled addon stays valid.
 COPY --from=build /app/build ./build
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
@@ -31,7 +24,7 @@ RUN mkdir -p /app/data && chown -R node:node /app
 USER node
 
 EXPOSE 3000
-ENV PORT=3000 DATABASE_PATH=/app/data/hijeshi.db
+ENV PORT=3000 DATABASE_URL=file:/app/data/hijeshi.db
 
 # Migrate on boot so a deploy never lands on an out-of-date schema.
 CMD ["sh", "-c", "node scripts/migrate.js && node build/index.js"]

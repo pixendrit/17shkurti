@@ -1,20 +1,19 @@
-import Database from 'better-sqlite3';
+import { createClient } from '@libsql/client';
 import { readdirSync, readFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-const path = process.env.DATABASE_PATH || './data/hijeshi.db';
-mkdirSync(dirname(path), { recursive: true });
+const url = process.env.DATABASE_URL || 'file:./data/hijeshi.db';
+if (url.startsWith('file:')) mkdirSync(dirname(url.slice(5)), { recursive: true });
 
-const db = new Database(path);
-db.pragma('journal_mode = WAL');
-db.exec('CREATE TABLE IF NOT EXISTS __migrations (name TEXT PRIMARY KEY, applied_at INTEGER)');
+const db = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN || undefined });
 
-const applied = new Set(db.prepare('SELECT name FROM __migrations').all().map((r) => r.name));
-const dir = './drizzle';
+await db.execute('CREATE TABLE IF NOT EXISTS __migrations (name TEXT PRIMARY KEY, applied_at INTEGER)');
+const { rows } = await db.execute('SELECT name FROM __migrations');
+const applied = new Set(rows.map((r) => r.name));
 
-let files = [];
+let files;
 try {
-	files = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort();
+	files = readdirSync('./drizzle').filter((f) => f.endsWith('.sql')).sort();
 } catch {
 	console.error('No drizzle/ folder — run `pnpm db:generate` first.');
 	process.exit(1);
@@ -23,20 +22,16 @@ try {
 let count = 0;
 for (const file of files) {
 	if (applied.has(file)) continue;
-	const sql = readFileSync(join(dir, file), 'utf8');
-	// drizzle-kit separates statements with this marker
+	const sql = readFileSync(join('./drizzle', file), 'utf8');
 	const statements = sql.split('--> statement-breakpoint').map((s) => s.trim()).filter(Boolean);
-	const run = db.transaction(() => {
-		for (const s of statements) db.exec(s);
-		db.prepare('INSERT INTO __migrations (name, applied_at) VALUES (?, ?)').run(
-			file,
-			Math.floor(Date.now() / 1000)
-		);
-	});
-	run();
+
+	// batch() is transactional, so a half-applied migration can't be recorded.
+	await db.batch(
+		[...statements, { sql: 'INSERT INTO __migrations (name, applied_at) VALUES (?, ?)', args: [file, Math.floor(Date.now() / 1000)] }],
+		'write'
+	);
 	console.log(`applied ${file}`);
 	count++;
 }
 
 console.log(count === 0 ? 'Database already up to date.' : `Applied ${count} migration(s).`);
-db.close();

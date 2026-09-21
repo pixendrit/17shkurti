@@ -12,19 +12,20 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "node scripts/migrate.js",
-		"db:seed": "node scripts/seed.js"
+		"db:seed": "node scripts/seed.js",
+		"vercel-build": "node scripts/migrate.js && vite build"
 	},
 	"dependencies": {
-		"better-sqlite3": "^13.0.3",
+		"@libsql/client": "^0.18.0",
 		"drizzle-orm": "^0.45.3"
 	},
 	"devDependencies": {
 		"@lucide/svelte": "^1.47.0",
 		"@sveltejs/adapter-node": "^5.5.7",
+		"@sveltejs/adapter-vercel": "^6.3.4",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"@tailwindcss/vite": "^4.3.3",
-		"@types/better-sqlite3": "^7.6.11",
 		"drizzle-kit": "^0.31.11",
 		"svelte": "^5.56.1",
 		"svelte-check": "^4.6.0",

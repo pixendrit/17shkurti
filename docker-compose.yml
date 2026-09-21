@@ -10,7 +10,8 @@ services:
       APP_PIN: ${APP_PIN:?set APP_PIN in .env}
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
       ORIGIN: ${ORIGIN:?set ORIGIN in .env}
-      DATABASE_PATH: /app/data/hijeshi.db
+      DATABASE_URL: ${DATABASE_URL:-file:/app/data/hijeshi.db}
+      DATABASE_AUTH_TOKEN: ${DATABASE_AUTH_TOKEN:-}
       NODE_ENV: production
     volumes:
       # The SQLite file lives here — this is the only thing to back up.

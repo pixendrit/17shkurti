@@ -12,11 +12,16 @@ It answers the three questions that DMs make hard to keep track of:
 
 ## Stack
 
-SvelteKit 2 (Svelte 5, runes) · Tailwind 4 · SQLite via Drizzle ORM ·
-`adapter-node` in Docker behind Traefik.
+SvelteKit 2 (Svelte 5, runes) · Tailwind 4 · SQLite via Drizzle ORM and
+`@libsql/client`.
 
 SQLite is deliberate: one shop, one person, a few thousand orders a year. The
 whole database is a single file you can copy as a backup.
+
+The libSQL client speaks both a local file (`file:./data/hijeshi.db`) and hosted
+Turso (`libsql://…`), so the same code runs on a laptop, in Docker, or on
+serverless — only `DATABASE_URL` changes. The build picks `adapter-vercel` when
+Vercel sets `VERCEL=1`, and `adapter-node` everywhere else.
 
 ## Running locally
 

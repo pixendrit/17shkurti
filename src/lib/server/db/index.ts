@@ -1,16 +1,29 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { createClient } from '@libsql/client';
+import { drizzle } from 'drizzle-orm/libsql';
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { env } from '$env/dynamic/private';
 import * as schema from './schema';
 
-const path = env.DATABASE_PATH || './data/hijeshi.db';
-mkdirSync(dirname(path), { recursive: true });
+/**
+ * One client for every environment.
+ *
+ * - local / Docker: DATABASE_URL=file:./data/hijeshi.db  (a plain SQLite file)
+ * - serverless:     DATABASE_URL=libsql://...  + DATABASE_AUTH_TOKEN
+ *
+ * Serverless filesystems are ephemeral, so a file: URL there would silently
+ * lose every order. Hosted libSQL is what makes Vercel & friends viable.
+ */
+const url = env.DATABASE_URL || 'file:./data/hijeshi.db';
 
-const sqlite = new Database(path);
-sqlite.pragma('journal_mode = WAL');
-sqlite.pragma('foreign_keys = ON');
+if (url.startsWith('file:')) {
+	mkdirSync(dirname(url.slice('file:'.length)), { recursive: true });
+}
 
-export const db = drizzle(sqlite, { schema });
-export { schema, sqlite };
+const client = createClient({
+	url,
+	authToken: env.DATABASE_AUTH_TOKEN || undefined
+});
+
+export const db = drizzle(client, { schema });
+export { schema, client };
