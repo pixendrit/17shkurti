@@ -5,18 +5,18 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Publishing by pushing the built site to the gh-pages branch, rather than the
+# Pages artifact API: creating a Pages site needs a token the default
+# GITHUB_TOKEN isn't, while pushing a branch only needs contents: write.
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
-# Let a running deploy finish rather than cancelling it half-way.
 concurrency:
   group: pages
   cancel-in-progress: false
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -41,26 +41,22 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}
 
-      - name: Add 404 fallback for SPA routing
-        # Pages serves 404.html for unknown paths; the SPA shell handles routing.
-        run: cp build/index.html build/404.html
+      - name: Prepare for Pages
+        run: |
+          # Pages serves 404.html for unknown paths; the SPA shell routes from there.
+          cp build/index.html build/404.html
+          # Stop Jekyll from processing the output.
+          touch build/.nojekyll
 
-      - name: Configure Pages
-        # enablement turns Pages on for the repo if it isn't already, so the
-        # first deploy needs no manual toggle in Settings.
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: build
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Publish to gh-pages
+        run: |
+          cd build
+          git init -b gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy ${GITHUB_SHA}"
+          git push --force \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
