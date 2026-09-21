@@ -1,0 +1,44 @@
+name: hijeshi
+
+services:
+  hijeshi:
+    build: .
+    image: hijeshi-dashboard:latest
+    container_name: hijeshi-dashboard
+    restart: unless-stopped
+    environment:
+      APP_PIN: ${APP_PIN:?set APP_PIN in .env}
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env}
+      ORIGIN: ${ORIGIN:?set ORIGIN in .env}
+      DATABASE_PATH: /app/data/hijeshi.db
+      NODE_ENV: production
+    volumes:
+      # The SQLite file lives here — this is the only thing to back up.
+      - hijeshi-data:/app/data
+    networks:
+      - traefik
+    labels:
+      traefik.enable: "true"
+      traefik.docker.network: ${TRAEFIK_NETWORK:-traefik}
+
+      traefik.http.routers.hijeshi.rule: Host(`${APP_HOST:-hijeshi.dev.zhurma.fm}`)
+      traefik.http.routers.hijeshi.entrypoints: ${TRAEFIK_ENTRYPOINT:-websecure}
+      traefik.http.routers.hijeshi.tls: "true"
+      traefik.http.routers.hijeshi.tls.certresolver: ${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      traefik.http.routers.hijeshi.service: hijeshi
+
+      traefik.http.services.hijeshi.loadbalancer.server.port: "3000"
+
+      # adapter-node reads the forwarded proto to build absolute URLs.
+      traefik.http.middlewares.hijeshi-headers.headers.customrequestheaders.X-Forwarded-Proto: https
+      traefik.http.routers.hijeshi.middlewares: hijeshi-headers
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  hijeshi-data:
+    # Pinned so renaming the project folder can't orphan the database.
+    name: hijeshi-data
