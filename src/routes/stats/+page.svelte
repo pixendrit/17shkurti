@@ -3,6 +3,7 @@
 	import BarList from '$lib/components/BarList.svelte';
 	import TrendChart from '$lib/components/TrendChart.svelte';
 	import { money, CHANNEL_LABELS } from '$lib/constants';
+	import { base } from '$app/paths';
 
 	let { data } = $props();
 	let showTable = $state(false);
@@ -26,7 +27,7 @@
 		<div class="flex gap-1">
 			{#each ranges as r (r.days)}
 				<a
-					href="/stats?days={r.days}"
+					href="{base}/stats?days={r.days}"
 					class="rounded-lg px-3 py-1.5 text-sm font-medium
 					{data.days === r.days ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}"
 				>

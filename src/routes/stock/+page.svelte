@@ -6,18 +6,42 @@
 	import Plus from '@lucide/svelte/icons/plus';
 	import Minus from '@lucide/svelte/icons/minus';
 
-	let { data, form } = $props();
+	import { addBlank, setDtfStock, changeStock, receiveDtf, setOnOrder } from '$lib/client/actions';
+
+	let { data } = $props();
 	let tab = $state<'blanks' | 'dtf'>('blanks');
 	let showAddBlank = $state(false);
 	let showAddDtf = $state(false);
+	let error = $state<string | null>(null);
+
+	let nb = $state({ productType: PRODUCT_TYPES[0], color: COLORS[0], size: 'M', quantity: 0, unitCost: 0 });
+	let nd = $state({ designId: '', quantity: 0, unitCost: 0 });
+	let onOrderDraft = $state<Record<number, number>>({});
+
+	async function submitBlank(e: Event) {
+		e.preventDefault();
+		error = await addBlank({ ...nb, quantity: Number(nb.quantity) || 0, unitCost: Number(nb.unitCost) || 0 });
+		if (!error) showAddBlank = false;
+	}
+
+	async function submitDtf(e: Event) {
+		e.preventDefault();
+		if (!nd.designId) { error = 'Pick a design.'; return; }
+		error = await setDtfStock({
+			designId: Number(nd.designId),
+			quantity: Number(nd.quantity) || 0,
+			unitCost: Number(nd.unitCost) || 0
+		});
+		if (!error) showAddDtf = false;
+	}
 </script>
 
 <svelte:head><title>Stock — Hijeshi</title></svelte:head>
 
 <h1 class="mb-5 text-xl font-semibold text-slate-900">Stock</h1>
 
-{#if form?.error}
-	<p class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{form.error}</p>
+{#if error}
+	<p class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
 {/if}
 
 <!-- What the open order book demands that you don't have -->
@@ -80,19 +104,19 @@
 		</header>
 
 		{#if showAddBlank}
-			<form method="POST" action="?/addBlank" class="grid gap-2 border-b border-slate-100 bg-slate-50 p-4 sm:grid-cols-5">
-				<select name="productType" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+			<form onsubmit={submitBlank} class="grid gap-2 border-b border-slate-100 bg-slate-50 p-4 sm:grid-cols-5">
+				<select bind:value={nb.productType} class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
 					{#each PRODUCT_TYPES as p (p)}<option value={p}>{p}</option>{/each}
 				</select>
-				<select name="color" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+				<select bind:value={nb.color} class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
 					{#each COLORS as c (c)}<option value={c}>{c}</option>{/each}
 				</select>
-				<select name="size" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+				<select bind:value={nb.size} class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
 					{#each SIZES as s (s)}<option value={s}>{s}</option>{/each}
 				</select>
-				<input name="quantity" type="number" min="0" placeholder="Qty" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+				<input bind:value={nb.quantity} type="number" min="0" placeholder="Qty" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 				<div class="flex gap-2">
-					<input name="unitCost" type="number" min="0" placeholder="Cost" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+					<input bind:value={nb.unitCost} type="number" min="0" placeholder="Cost" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 					<button class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">Add</button>
 				</div>
 			</form>
@@ -114,13 +138,11 @@
 							<span class="tabular w-10 text-right text-sm font-semibold {b.quantity <= b.lowStockAt ? 'text-amber-600' : 'text-slate-900'}">
 								{b.quantity}
 							</span>
-							<form method="POST" action="?/adjust" class="flex gap-1">
-								<input type="hidden" name="kind" value="blank" />
-								<input type="hidden" name="refId" value={b.id} />
-								<button name="delta" value="-1" aria-label="Remove one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Minus class="size-3.5" /></button>
-								<button name="delta" value="1" aria-label="Add one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Plus class="size-3.5" /></button>
-								<button name="delta" value="10" class="rounded-md border border-slate-300 px-2 py-1.5 text-xs font-medium hover:bg-slate-50">+10</button>
-							</form>
+							<div class="flex gap-1">
+								<button onclick={() => changeStock('blank', b.id, -1)} aria-label="Remove one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Minus class="size-3.5" /></button>
+								<button onclick={() => changeStock('blank', b.id, 1)} aria-label="Add one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Plus class="size-3.5" /></button>
+								<button onclick={() => changeStock('blank', b.id, 10)} class="rounded-md border border-slate-300 px-2 py-1.5 text-xs font-medium hover:bg-slate-50">+10</button>
+							</div>
 						</div>
 					</div>
 				{/each}
@@ -137,14 +159,14 @@
 		</header>
 
 		{#if showAddDtf}
-			<form method="POST" action="?/addDtf" class="grid gap-2 border-b border-slate-100 bg-slate-50 p-4 sm:grid-cols-4">
-				<select name="designId" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm sm:col-span-2">
+			<form onsubmit={submitDtf} class="grid gap-2 border-b border-slate-100 bg-slate-50 p-4 sm:grid-cols-4">
+				<select bind:value={nd.designId} class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm sm:col-span-2">
 					<option value="">Pick a design…</option>
-					{#each data.designs as d (d.id)}<option value={d.id}>{d.name}</option>{/each}
+					{#each data.designs as d (d.id)}<option value={String(d.id)}>{d.name}</option>{/each}
 				</select>
-				<input name="quantity" type="number" min="0" placeholder="Qty" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+				<input bind:value={nd.quantity} type="number" min="0" placeholder="Qty" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 				<div class="flex gap-2">
-					<input name="unitCost" type="number" min="0" placeholder="Cost" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+					<input bind:value={nd.unitCost} type="number" min="0" placeholder="Cost" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 					<button class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">Add</button>
 				</div>
 			</form>
@@ -167,28 +189,30 @@
 								<span class="tabular w-10 text-right text-sm font-semibold {d.quantity <= d.lowStockAt ? 'text-amber-600' : 'text-slate-900'}">
 									{d.quantity}
 								</span>
-								<form method="POST" action="?/adjust" class="flex gap-1">
-									<input type="hidden" name="kind" value="dtf" />
-									<input type="hidden" name="refId" value={d.id} />
-									<button name="delta" value="-1" aria-label="Remove one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Minus class="size-3.5" /></button>
-									<button name="delta" value="1" aria-label="Add one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Plus class="size-3.5" /></button>
-								</form>
+								<div class="flex gap-1">
+									<button onclick={() => changeStock('dtf', d.id, -1)} aria-label="Remove one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Minus class="size-3.5" /></button>
+									<button onclick={() => changeStock('dtf', d.id, 1)} aria-label="Add one" class="rounded-md border border-slate-300 p-1.5 hover:bg-slate-50"><Plus class="size-3.5" /></button>
+								</div>
 							</div>
 						</div>
 
 						<div class="mt-2 flex gap-2">
-							<form method="POST" action="?/setOnOrder" class="flex gap-1">
-								<input type="hidden" name="id" value={d.id} />
-								<input name="onOrder" type="number" min="0" value={d.onOrder} class="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs" />
-								<button class="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-50">Sent to printer</button>
-							</form>
+							<div class="flex gap-1">
+								<input
+									type="number"
+									min="0"
+									value={onOrderDraft[d.id] ?? d.onOrder}
+									oninput={(e) => (onOrderDraft[d.id] = Number(e.currentTarget.value) || 0)}
+									class="w-20 rounded-md border border-slate-300 px-2 py-1 text-xs"
+								/>
+								<button onclick={() => setOnOrder(d.id, onOrderDraft[d.id] ?? d.onOrder)} class="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium hover:bg-slate-50">
+									Sent to printer
+								</button>
+							</div>
 							{#if d.onOrder > 0}
-								<form method="POST" action="?/receiveDtf">
-									<input type="hidden" name="id" value={d.id} />
-									<button class="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700">
-										Received {d.onOrder}
-									</button>
-								</form>
+								<button onclick={() => receiveDtf(d.id)} class="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white hover:bg-emerald-700">
+									Received {d.onOrder}
+								</button>
 							{/if}
 						</div>
 					</div>

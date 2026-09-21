@@ -1,11 +1,11 @@
-import adapterNode from '@sveltejs/adapter-node';
-import adapterVercel from '@sveltejs/adapter-vercel';
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
-// Vercel sets VERCEL=1 during its build; everywhere else we ship a Node server.
-const adapter = process.env.VERCEL ? adapterVercel() : adapterNode();
+// GitHub Pages serves a project site from /<repo>, so the app needs that prefix.
+const raw = process.env.BASE_PATH ?? '';
+const base = (raw === '' ? '' : raw.startsWith('/') ? raw : `/${raw}`) as '' | `/${string}`;
 
 export default defineConfig({
 	plugins: [
@@ -15,7 +15,11 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			adapter
+			// A single-page app: every route is resolved in the browser, because
+			// the database lives there too.
+			adapter: adapter({ fallback: 'index.html', strict: false }),
+			paths: { base, relative: false },
+			appDir: 'app'
 		})
 	]
 });

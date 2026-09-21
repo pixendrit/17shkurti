@@ -2,6 +2,7 @@
 	import StatTile from '$lib/components/StatTile.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { money } from '$lib/constants';
+	import { base } from '$app/paths';
 	import Plus from '@lucide/svelte/icons/plus';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
@@ -21,7 +22,7 @@
 			{data.openCount} open order{data.openCount === 1 ? '' : 's'}{#if data.newCount > 0}, {data.newCount} brand new{/if}
 		</p>
 	</div>
-	<a href="/orders/new" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+	<a href="{base}/orders/new" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
 		<Plus class="size-4" /> New order
 	</a>
 </div>
@@ -35,7 +36,7 @@
 {#if data.toBuyCount > 0 || data.toPrint.length > 0}
 	<div class="mb-5 grid gap-3 sm:grid-cols-2">
 		{#if data.toBuyCount > 0}
-			<a href="/stock" class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 hover:border-amber-300">
+			<a href="{base}/stock" class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 hover:border-amber-300">
 				<ShoppingCart class="size-5 shrink-0 text-amber-700" />
 				<div>
 					<p class="text-sm font-semibold text-amber-900">Buy {data.toBuyCount} blank{data.toBuyCount === 1 ? '' : 's'}</p>
@@ -44,7 +45,7 @@
 			</a>
 		{/if}
 		{#if data.toPrint.length > 0}
-			<a href="/stock" class="flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 p-4 hover:border-purple-300">
+			<a href="{base}/stock" class="flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 p-4 hover:border-purple-300">
 				<Printer class="size-5 shrink-0 text-purple-700" />
 				<div>
 					<p class="text-sm font-semibold text-purple-900">Print {data.toPrint.length} design{data.toPrint.length === 1 ? '' : 's'}</p>
@@ -63,7 +64,7 @@
 			<ul class="divide-y divide-slate-100">
 				{#each orders as o (o.id)}
 					<li>
-						<a href="/orders/{o.id}" class="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-slate-50">
+						<a href="{base}/orders/{o.id}" class="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-slate-50">
 							<div class="min-w-0">
 								<p class="truncate text-sm font-medium text-slate-900">{o.customerName}</p>
 								<p class="truncate text-xs text-slate-500">{o.code} · {o.units} item{o.units === 1 ? '' : 's'}</p>

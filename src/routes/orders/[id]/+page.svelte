@@ -7,7 +7,19 @@
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
 	import Copy from '@lucide/svelte/icons/copy';
 
-	let { data, form } = $props();
+	import { base } from '$app/paths';
+	import { deleteOrder, markAsMade, setOrderStatus, setPaymentStatus } from '$lib/client/actions';
+
+	let { data } = $props();
+	let error = $state<string | null>(null);
+
+	async function make() {
+		error = await markAsMade(data.order.id);
+	}
+
+	async function remove() {
+		if (confirm('Delete this order permanently?')) await deleteOrder(data.order.id);
+	}
 
 	const flow = ['new', 'confirmed', 'in_production', 'ready', 'shipped', 'delivered'];
 	let copied = $state(false);
@@ -29,7 +41,7 @@
 <svelte:head><title>{data.order.code} — Hijeshi</title></svelte:head>
 
 <div class="mb-5 flex flex-wrap items-center gap-3">
-	<a href="/orders" class="text-sm text-slate-500 hover:text-slate-900">← Orders</a>
+	<a href="{base}/orders" class="text-sm text-slate-500 hover:text-slate-900">← Orders</a>
 	<h1 class="text-xl font-semibold text-slate-900">{data.order.code}</h1>
 	<StatusBadge status={data.order.status} />
 	{#if data.order.paymentStatus === 'paid'}
@@ -39,8 +51,8 @@
 	{/if}
 </div>
 
-{#if form?.error}
-	<p class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{form.error}</p>
+{#if error}
+	<p class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
 {/if}
 
 <div class="grid gap-4 lg:grid-cols-3">
@@ -139,27 +151,22 @@
 			<h2 class="mb-3 text-sm font-semibold text-slate-900">Move to</h2>
 			<div class="grid grid-cols-2 gap-2">
 				{#each flow as s (s)}
-					<form method="POST" action="?/status">
-						<input type="hidden" name="status" value={s} />
-						<button
-							disabled={data.order.status === s}
-							class="w-full rounded-lg border px-2 py-2 text-xs font-medium
-							{data.order.status === s
-								? 'cursor-default border-slate-900 bg-slate-900 text-white'
-								: 'border-slate-300 hover:bg-slate-50'}"
-						>
-							{STATUS_LABELS[s]}
-						</button>
-					</form>
+					<button
+						onclick={() => setOrderStatus(data.order.id, s)}
+						disabled={data.order.status === s}
+						class="w-full rounded-lg border px-2 py-2 text-xs font-medium
+						{data.order.status === s
+							? 'cursor-default border-slate-900 bg-slate-900 text-white'
+							: 'border-slate-300 hover:bg-slate-50'}"
+					>
+						{STATUS_LABELS[s]}
+					</button>
 				{/each}
 			</div>
 
-			<form method="POST" action="?/status" class="mt-2">
-				<input type="hidden" name="status" value="cancelled" />
-				<button class="w-full rounded-lg border border-red-200 px-2 py-2 text-xs font-medium text-red-600 hover:bg-red-50">
-					Cancel order
-				</button>
-			</form>
+			<button onclick={() => setOrderStatus(data.order.id, 'cancelled')} class="mt-2 w-full rounded-lg border border-red-200 px-2 py-2 text-xs font-medium text-red-600 hover:bg-red-50">
+				Cancel order
+			</button>
 		</section>
 
 		<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -167,17 +174,16 @@
 			{#if data.order.stockDeductedAt}
 				<p class="text-sm text-slate-500">Stock already taken for this order.</p>
 			{:else}
-				<form method="POST" action="?/deduct">
-					<button
-						disabled={!data.ready}
-						class="w-full rounded-lg px-3 py-2.5 text-sm font-semibold
-						{data.ready
-							? 'bg-emerald-600 text-white hover:bg-emerald-700'
-							: 'cursor-not-allowed bg-slate-100 text-slate-400'}"
-					>
-						{data.ready ? 'Mark as made' : 'Missing stock'}
-					</button>
-				</form>
+				<button
+					onclick={make}
+					disabled={!data.ready}
+					class="w-full rounded-lg px-3 py-2.5 text-sm font-semibold
+					{data.ready
+						? 'bg-emerald-600 text-white hover:bg-emerald-700'
+						: 'cursor-not-allowed bg-slate-100 text-slate-400'}"
+				>
+					{data.ready ? 'Mark as made' : 'Missing stock'}
+				</button>
 				<p class="mt-2 text-xs text-slate-500">
 					{data.ready
 						? 'Takes the blanks and transfers out of stock.'
@@ -188,18 +194,16 @@
 
 		<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 			<h2 class="mb-3 text-sm font-semibold text-slate-900">Payment</h2>
-			<form method="POST" action="?/payment">
-				<input type="hidden" name="paymentStatus" value={data.order.paymentStatus === 'paid' ? 'unpaid' : 'paid'} />
-				<button class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">
-					Mark as {data.order.paymentStatus === 'paid' ? 'unpaid' : 'paid'}
-				</button>
-			</form>
+			<button
+				onclick={() => setPaymentStatus(data.order.id, data.order.paymentStatus === 'paid' ? 'unpaid' : 'paid')}
+				class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50"
+			>
+				Mark as {data.order.paymentStatus === 'paid' ? 'unpaid' : 'paid'}
+			</button>
 		</section>
 
-		<form method="POST" action="?/delete" onsubmit={(e) => { if (!confirm('Delete this order permanently?')) e.preventDefault(); }}>
-			<button class="w-full rounded-lg px-3 py-2 text-xs font-medium text-slate-400 hover:text-red-600">
-				Delete order
-			</button>
-		</form>
+		<button onclick={remove} class="w-full rounded-lg px-3 py-2 text-xs font-medium text-slate-400 hover:text-red-600">
+			Delete order
+		</button>
 	</div>
 </div>

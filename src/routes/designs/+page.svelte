@@ -2,8 +2,23 @@
 	import Empty from '$lib/components/Empty.svelte';
 	import Plus from '@lucide/svelte/icons/plus';
 
-	let { data, form } = $props();
+	import { createDesign, toggleArchive } from '$lib/client/actions';
+
+	let { data } = $props();
 	let showAdd = $state(false);
+	let name = $state('');
+	let notes = $state('');
+	let error = $state<string | null>(null);
+
+	async function submit(e: Event) {
+		e.preventDefault();
+		error = await createDesign(name, notes);
+		if (!error) {
+			name = '';
+			notes = '';
+			showAdd = false;
+		}
+	}
 </script>
 
 <svelte:head><title>Designs — Hijeshi</title></svelte:head>
@@ -15,20 +30,20 @@
 	</button>
 </div>
 
-{#if form?.error}
-	<p class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{form.error}</p>
+{#if error}
+	<p class="mb-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
 {/if}
 
 {#if showAdd}
-	<form method="POST" action="?/create" class="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+	<form onsubmit={submit} class="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 		<div class="grid gap-3 sm:grid-cols-3">
 			<label class="block sm:col-span-1">
 				<span class="mb-1 block text-xs font-medium text-slate-600">Name *</span>
-				<input name="name" required placeholder="e.g. Shqiponja" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+				<input bind:value={name} required placeholder="e.g. Shqiponja" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
 			</label>
 			<label class="block sm:col-span-2">
 				<span class="mb-1 block text-xs font-medium text-slate-600">Notes</span>
-				<input name="notes" placeholder="Print size, colours, where the file lives…" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+				<input bind:value={notes} placeholder="Print size, colours, where the file lives…" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
 			</label>
 		</div>
 		<button class="mt-3 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white">Save design</button>
@@ -50,12 +65,9 @@
 						<span class="text-xs text-slate-500">
 							<span class="tabular font-semibold text-slate-900">{d.transfers}</span> transfers
 						</span>
-						<form method="POST" action="?/archive">
-							<input type="hidden" name="id" value={d.id} />
-							<button class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50">
-								{d.archived ? 'Restore' : 'Archive'}
-							</button>
-						</form>
+						<button onclick={() => toggleArchive(d.id)} class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50">
+							{d.archived ? 'Restore' : 'Archive'}
+						</button>
 					</div>
 				</div>
 			{/each}
