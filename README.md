@@ -1,81 +1,80 @@
 # hijeshi-dashboard
 
-Order desk for **Hijeshi Shqiptare** — a small t-shirt shop selling through
-Instagram, Messenger and TikTok DMs.
+Order desk for **Hijeshi Shqiptare**, a small t-shirt shop that sells through
+Instagram, Messenger and TikTok DMs. Built for several people working from one
+shared set of orders and stock.
 
-**Live: https://pixendrit.github.io/17shkurti/**
+It answers three questions:
 
-It answers the three questions DMs make hard to track:
-
-1. **Who ordered what?** Name, phone, address, product, size, colour, design.
-2. **Can I actually make it?** Do I have the blank shirt, and is the DTF transfer
-   printed — or do I need to buy blanks and send artwork to the printer?
-3. **Am I making money?** Revenue, cost, profit, and what's still owed.
-
-## Where your data lives
-
-**In your browser, and nowhere else.** SQLite is compiled to WebAssembly and runs
-on the page; the database is saved into your browser's storage after every change.
-Nothing is uploaded — there is no server and no account.
-
-That has one consequence worth taking seriously:
-
-> **Clearing your browser data deletes your orders.** They also don't follow you
-> to another phone or laptop on their own.
-
-So the app has **Backup** and **Restore** in the menu. Backup downloads the whole
-database as one `.db` file; Restore loads it back, on this device or another one.
-Do it regularly — after a busy day, say. Treat the backup file as the real copy.
-
-The 4-digit code is a lock screen, not a security boundary: it stops someone
-picking up an unlocked phone and reading the order book. Since the data never
-leaves the device, there's no server-side secret to protect.
-
-## How the stock logic works
-
-Every order item needs two things: a **blank** (product + colour + size) and, if
-it has artwork, a **DTF transfer** for that design.
-
-- Orders are labelled **Can make** or **Missing stock** on the dashboard and list.
-- The Stock page turns every open order into one **shopping list**: blanks to buy
-  and designs to print. Demand is summed across all open orders first, then stock
-  subtracted once — so one blank covering three orders isn't counted three times.
-- **Mark as made** deducts blanks and transfers in one step and writes to an
-  append-only `stock_log`. It runs once per order and refuses when stock is short.
-- Transfers at the print shop are tracked as **on order**, so they count toward
-  demand without pretending they're in the drawer.
+1. **Who ordered what?** Name, phone, address, product, size, colour and design.
+2. **Can I make it yet?** Is the blank shirt in stock and is the DTF transfer
+   printed, or do I need to buy blanks or send artwork to the printer?
+3. **Am I making money?** Revenue, cost, profit and what's still owed.
 
 ## Stack
 
-SvelteKit 2 (Svelte 5, runes) · Tailwind 4 · SQLite (WASM) via Drizzle ORM,
-built as a static single-page app and deployed to GitHub Pages by
-`.github/workflows/deploy.yml` on every push to `main`.
+SvelteKit 2 (Svelte 5) and Tailwind 4, running on **Cloudflare Workers** with a
+**D1** (SQLite) database through Drizzle ORM. Everyone signs in with the same
+4-digit code and sees the same data in real time.
+
+## Deploying
+
+Free Cloudflare account, no card needed. Put these in the environment:
+
+| Variable | Value |
+| --- | --- |
+| `CLOUDFLARE_API_TOKEN` | API token: the "Edit Cloudflare Workers" template plus **Account → D1 → Edit** |
+| `CLOUDFLARE_ACCOUNT_ID` | shown on the Cloudflare dashboard home |
+| `APP_PIN` | the 4-digit unlock code |
+
+Then:
+
+```bash
+pnpm install
+pnpm ship
+```
+
+`scripts/deploy.sh` creates the database and the `workers.dev` subdomain if they
+don't exist yet, applies migrations, builds, deploys, sets the secrets and then
+checks that the site answers. You can run it again safely: redeploys keep
+`SESSION_SECRET`, so nobody gets logged out.
 
 ## Local development
 
 ```bash
 pnpm install
-pnpm dev
+cp .dev.vars.example .dev.vars   # APP_PIN and SESSION_SECRET for local use
+pnpm db:migrate:local            # creates a local D1 database under .wrangler/
+pnpm dev                         # or: pnpm preview, which runs the real Workers runtime
 ```
 
-| Command | What it does |
-| --- | --- |
-| `pnpm dev` | Dev server |
-| `pnpm build` | Static build into `build/` |
-| `pnpm check` | Type-check |
+After changing `src/lib/data/schema.ts`, run `pnpm db:generate` to write a new
+migration into `drizzle/`.
 
-`BASE_PATH` sets the sub-path for project-site hosting; CI derives it from the
-repo name, so renaming the repo keeps the deploy working.
+## How the stock logic works
 
-## Wanting a real server instead?
+Each order item needs a **blank** (product, colour and size) and, if it has
+artwork, a **DTF transfer** for that design.
 
-An earlier version ran as a Node server with a proper database and Traefik config
-for `hijeshi.dev.zhurma.fm`. It's kept at the `server-version` tag:
+- Orders show **Can make** or **Missing stock** on the dashboard and order list.
+- The Stock page turns all open orders into one **shopping list** of blanks to
+  buy and designs to print. It adds up demand across every open order first and
+  subtracts stock once, so one blank covering three orders isn't counted three
+  times.
+- **Mark as made** takes the blanks and transfers out of stock in one step and
+  records it in an append-only `stock_log`. It runs once per order and refuses
+  if stock is short.
+- Transfers still at the print shop are tracked as **on order**. They count
+  toward demand but aren't treated as stock you have.
 
-```bash
-git checkout server-version
-```
+## Security
 
-It needs somewhere to host it (Fly.io, a VPS, or Vercel + Turso) — that's the
-trade: real hosting and multi-device data, versus this, which is free, private
-and already running.
+A 4-digit code has only 10,000 combinations, so the lockout is what protects it:
+after 5 wrong attempts, that IP is blocked for 15 minutes. The failed attempts
+are counted in D1 rather than in memory, because Workers run in many short-lived
+instances. Sessions are HMAC-signed cookies that last 30 days.
+
+## Backups
+
+D1 keeps its own point-in-time history, and **Backup** in the menu downloads every
+table as a JSON file.

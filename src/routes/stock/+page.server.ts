@@ -1,11 +1,9 @@
-import { getDb } from '$lib/client/db';
 import { shoppingList } from '$lib/data/stock';
 import { asc } from 'drizzle-orm';
 import { blanks, designs, dtfStock } from '$lib/data/schema';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async () => {
-	const db = await getDb();
+export const load: PageServerLoad = async ({ locals: { db } }) => {
 	const allDesigns = await db.select().from(designs);
 	const designName = new Map(allDesigns.map((d) => [d.id, d.name]));
 

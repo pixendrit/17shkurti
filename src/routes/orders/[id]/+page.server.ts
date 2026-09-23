@@ -1,13 +1,11 @@
 import { error } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
-import { getDb } from '$lib/client/db';
 import { getOrder, orderCost, orderTotal } from '$lib/data/orders';
 import { orderReadiness } from '$lib/data/stock';
 import { designs, orderItems } from '$lib/data/schema';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async ({ params }) => {
-	const db = await getDb();
+export const load: PageServerLoad = async ({ params, locals: { db } }) => {
 	const id = Number(params.id);
 
 	const order = await getOrder(db, id);

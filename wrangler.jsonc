@@ -1,0 +1,21 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "hijeshi-dashboard",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"compatibility_date": "2026-09-01",
+	"compatibility_flags": ["nodejs_compat"],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "hijeshi",
+			// Filled in by scripts/deploy.sh the first time it creates the database.
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "drizzle"
+		}
+	],
+	"observability": { "enabled": true }
+}

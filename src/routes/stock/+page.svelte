@@ -154,7 +154,7 @@
 		<header class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
 			<h2 class="text-sm font-semibold text-slate-900">DTF transfers</h2>
 			<button onclick={() => (showAddDtf = !showAddDtf)} class="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50">
-				<Plus class="size-3.5" /> Add
+				<Plus class="size-3.5" /> Set stock
 			</button>
 		</header>
 
@@ -167,7 +167,7 @@
 				<input bind:value={nd.quantity} type="number" min="0" placeholder="Qty" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 				<div class="flex gap-2">
 					<input bind:value={nd.unitCost} type="number" min="0" placeholder="Cost" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
-					<button class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">Add</button>
+					<button class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">Save</button>
 				</div>
 			</form>
 		{/if}

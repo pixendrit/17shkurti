@@ -152,3 +152,14 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 	order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
 	design: one(designs, { fields: [orderItems.designId], references: [designs.id] })
 }));
+
+/**
+ * Failed PIN attempts per IP. Kept in the database rather than in memory
+ * because Workers run many short-lived isolates, so a memory counter would
+ * reset constantly and never actually throttle anything.
+ */
+export const loginAttempts = sqliteTable('login_attempts', {
+	ip: text('ip').primaryKey(),
+	count: integer('count').notNull().default(0),
+	lockedUntil: integer('locked_until').notNull().default(0)
+});

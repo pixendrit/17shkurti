@@ -1,10 +1,8 @@
 import { asc } from 'drizzle-orm';
-import { getDb } from '$lib/client/db';
 import { designs, dtfStock } from '$lib/data/schema';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async () => {
-	const db = await getDb();
+export const load: PageServerLoad = async ({ locals: { db } }) => {
 	const rows = await db.select().from(designs).orderBy(asc(designs.name));
 	const stock = await db.select().from(dtfStock);
 	const byDesign = new Map(stock.map((s) => [s.designId, s]));

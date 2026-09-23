@@ -30,3 +30,7 @@ vite.config.ts.timestamp-*
 # Anchored to the root: an unanchored `data/` would also match src/lib/data/.
 /data/
 *.db
+
+# Local Cloudflare secrets
+.dev.vars
+.wrangler/

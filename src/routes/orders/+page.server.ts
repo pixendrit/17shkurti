@@ -1,10 +1,8 @@
-import { getDb } from '$lib/client/db';
 import { listOrders } from '$lib/data/orders';
 import { orderReadiness } from '$lib/data/stock';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async ({ url }) => {
-	const db = await getDb();
+export const load: PageServerLoad = async ({ url, locals: { db } }) => {
 	const status = url.searchParams.get('status') ?? 'open';
 	const q = url.searchParams.get('q') ?? '';
 

@@ -1,12 +1,10 @@
-import { getDb } from '$lib/client/db';
 import { listOrders } from '$lib/data/orders';
 import { orderReadiness, shoppingList } from '$lib/data/stock';
 import { financials } from '$lib/data/stats';
 import { designs } from '$lib/data/schema';
-import type { PageLoad } from './$types';
+import type { PageServerLoad } from './$types';
 
-export const load: PageLoad = async () => {
-	const db = await getDb();
+export const load: PageServerLoad = async ({ locals: { db } }) => {
 
 	const all = await listOrders(db);
 	const open = all.filter((o) => !['delivered', 'cancelled'].includes(o.status));

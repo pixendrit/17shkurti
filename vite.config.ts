@@ -1,11 +1,7 @@
-import adapter from '@sveltejs/adapter-static';
+import adapter from '@sveltejs/adapter-cloudflare';
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
-
-// GitHub Pages serves a project site from /<repo>, so the app needs that prefix.
-const raw = process.env.BASE_PATH ?? '';
-const base = (raw === '' ? '' : raw.startsWith('/') ? raw : `/${raw}`) as '' | `/${string}`;
 
 export default defineConfig({
 	plugins: [
@@ -15,11 +11,9 @@ export default defineConfig({
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
-			// A single-page app: every route is resolved in the browser, because
-			// the database lives there too.
-			adapter: adapter({ fallback: 'index.html', strict: false }),
-			paths: { base, relative: false },
-			appDir: 'app'
+			// Runs on Cloudflare Workers; the D1 database and secrets arrive on
+			// `platform.env`. In `vite dev` they are emulated from wrangler.jsonc.
+			adapter: adapter()
 		})
 	]
 });
