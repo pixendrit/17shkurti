@@ -13,7 +13,7 @@
 			"binding": "DB",
 			"database_name": "hijeshi",
 			// Filled in by scripts/deploy.sh the first time it creates the database.
-			"database_id": "00000000-0000-0000-0000-000000000000",
+			"database_id": "2162e46b-50b9-4397-9356-c4fa5fa58cb8",
 			"migrations_dir": "drizzle"
 		}
 	],
