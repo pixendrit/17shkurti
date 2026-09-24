@@ -3,15 +3,13 @@
  * they are database keys, and orders are matched to stock by comparing them.
  * Only what's shown on screen is Albanian, through the label maps below.
  */
-export const PRODUCT_TYPES = ['T-Shirt', 'Hoodie', 'Long Sleeve', 'Tote Bag'];
+export const PRODUCT_TYPES = ['Oversized 200g', 'Regular Fit'];
 export const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
 export const COLORS = ['White', 'Black', 'Grey', 'Navy', 'Beige', 'Red'];
 
 const PRODUCT_LABELS: Record<string, string> = {
-	'T-Shirt': 'Bluzë',
-	Hoodie: 'Duks me kapuç',
-	'Long Sleeve': 'Bluzë me mëngë të gjata',
-	'Tote Bag': 'Çantë pëlhure'
+	'Oversized 200g': 'Oversized 200gr',
+	'Regular Fit': 'Regular fit'
 };
 
 const COLOR_LABELS: Record<string, string> = {

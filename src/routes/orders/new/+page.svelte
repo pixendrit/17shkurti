@@ -78,7 +78,7 @@
 	};
 
 	let rows = $state<Row[]>([
-		{ productType: 'T-Shirt', color: 'White', size: 'M', designId: '', quantity: 1, unitPrice: rememberedPrice() }
+		{ productType: PRODUCT_TYPES[0], color: 'White', size: 'M', designId: '', quantity: 1, unitPrice: rememberedPrice() }
 	]);
 	let shippingFee = $state(0);
 	let discount = $state(0);
@@ -89,7 +89,7 @@
 	function addRow() {
 		const last = rows[rows.length - 1];
 		rows.push({
-			productType: last?.productType ?? 'T-Shirt',
+			productType: last?.productType ?? PRODUCT_TYPES[0],
 			color: last?.color ?? 'White',
 			size: 'M',
 			designId: last?.designId ?? '',
