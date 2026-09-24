@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+/**
+ * The PIN lock: a signed session cookie, and throttling of wrong PINs.
+ */
 import type { Cookies } from '@sveltejs/kit';
-import { loginAttempts } from '$lib/data/schema';
-import type { DB } from '$lib/data/types';
 
 const COOKIE = 'hijeshi_session';
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days: this lives on phones
@@ -11,18 +11,12 @@ const LOCKOUT_SECONDS = 15 * 60;
 const enc = new TextEncoder();
 
 async function hmac(secret: string, payload: string): Promise<string> {
-	const key = await crypto.subtle.importKey(
-		'raw',
-		enc.encode(secret),
-		{ name: 'HMAC', hash: 'SHA-256' },
-		false,
-		['sign']
-	);
+	const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
 	const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payload));
 	return [...new Uint8Array(sig)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Compare without leaking how much of the string matched. */
+/** Compares without leaking how much of the string matched. */
 function safeEqual(a: string, b: string): boolean {
 	if (a.length !== b.length) return false;
 	let diff = 0;
@@ -30,9 +24,7 @@ function safeEqual(a: string, b: string): boolean {
 	return diff === 0;
 }
 
-export function checkPin(input: string, expected: string): boolean {
-	return safeEqual(input, expected);
-}
+export const checkPin = (input: string, expected: string) => safeEqual(input, expected);
 
 export async function createSession(cookies: Cookies, secret: string, secure: boolean) {
 	const payload = `${Date.now()}.${crypto.randomUUID()}`;
@@ -45,38 +37,40 @@ export async function createSession(cookies: Cookies, secret: string, secure: bo
 	});
 }
 
-export function destroySession(cookies: Cookies) {
-	cookies.delete(COOKIE, { path: '/' });
-}
+export const destroySession = (cookies: Cookies) => cookies.delete(COOKIE, { path: '/' });
 
 export async function isAuthed(cookies: Cookies, secret: string): Promise<boolean> {
 	const raw = cookies.get(COOKIE);
-	if (!raw) return false;
-	const i = raw.lastIndexOf('.');
-	if (i < 0) return false;
+	const i = raw?.lastIndexOf('.') ?? -1;
+	if (!raw || i < 0) return false;
 	const payload = raw.slice(0, i);
-	const mac = raw.slice(i + 1);
-	if (!safeEqual(mac, await hmac(secret, payload))) return false;
+	if (!safeEqual(raw.slice(i + 1), await hmac(secret, payload))) return false;
 	const age = (Date.now() - Number(payload.split('.')[0])) / 1000;
 	return Number.isFinite(age) && age >= 0 && age < MAX_AGE;
 }
 
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+
 /** Seconds this IP must still wait, or 0. A 4-digit PIN is only 10 000 guesses. */
-export async function lockedFor(db: DB, ip: string): Promise<number> {
-	const [row] = await db.select().from(loginAttempts).where(eq(loginAttempts.ip, ip)).limit(1);
-	const now = Math.floor(Date.now() / 1000);
-	return row && row.lockedUntil > now ? row.lockedUntil - now : 0;
+export async function lockedFor(db: D1Database, ip: string): Promise<number> {
+	const row = await db.prepare('SELECT locked_until FROM login_attempts WHERE ip = ?').bind(ip).first<{ locked_until: number }>();
+	const now = nowSeconds();
+	return row && row.locked_until > now ? row.locked_until - now : 0;
 }
 
-export async function recordFailure(db: DB, ip: string) {
-	const [row] = await db.select().from(loginAttempts).where(eq(loginAttempts.ip, ip)).limit(1);
-	const count = (row?.count ?? 0) + 1;
-	const lockedUntil = count >= MAX_ATTEMPTS ? Math.floor(Date.now() / 1000) + LOCKOUT_SECONDS : 0;
-	const next = { count: count >= MAX_ATTEMPTS ? 0 : count, lockedUntil };
-	if (row) await db.update(loginAttempts).set(next).where(eq(loginAttempts.ip, ip));
-	else await db.insert(loginAttempts).values({ ip, ...next });
+/** Counts a wrong PIN; the fifth locks the IP out for a while. */
+export async function recordFailure(db: D1Database, ip: string) {
+	const lockUntil = nowSeconds() + LOCKOUT_SECONDS;
+	await db
+		.prepare(
+			`INSERT INTO login_attempts (ip, count, locked_until) VALUES (?, 1, 0)
+			 ON CONFLICT (ip) DO UPDATE SET
+			   locked_until = CASE WHEN count + 1 >= ? THEN ? ELSE 0 END,
+			   count = CASE WHEN count + 1 >= ? THEN 0 ELSE count + 1 END`
+		)
+		.bind(ip, MAX_ATTEMPTS, lockUntil, MAX_ATTEMPTS)
+		.run();
 }
 
-export async function clearFailures(db: DB, ip: string) {
-	await db.delete(loginAttempts).where(eq(loginAttempts.ip, ip));
-}
+export const clearFailures = (db: D1Database, ip: string) =>
+	db.prepare('DELETE FROM login_attempts WHERE ip = ?').bind(ip).run();

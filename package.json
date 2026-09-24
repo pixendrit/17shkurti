@@ -9,9 +9,9 @@
 		"preview": "pnpm build && wrangler dev",
 		"prepare": "svelte-kit sync",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"db:generate": "drizzle-kit generate",
-		"db:migrate:local": "wrangler d1 migrations apply hijeshi --local",
-		"ship": "bash scripts/deploy.sh"
+		"db:migrate:local": "wrangler d1 migrations apply hijeshi-eu --local",
+		"ship": "bash scripts/deploy.sh",
+		"test": "vitest run"
 	},
 	"devDependencies": {
 		"@cloudflare/workers-types": "^5.20260923.1",

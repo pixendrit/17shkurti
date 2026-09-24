@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { MONTHS } from '$lib/constants';
+	import { monthLabel as fullMonth } from '$lib/ui';
 	/**
 	 * Single-series trend over time. One series means no legend box — the card
 	 * title already says what is plotted. Hover gives a crosshair + tooltip.
@@ -52,10 +52,8 @@
 		hover = best;
 	}
 
-	function monthLabel(key: string) {
-		const [y, m] = key.split('-');
-		return `${MONTHS[Number(m) - 1]} ${y.slice(2)}`;
-	}
+	/** "2026-09" -> "sht 26": short enough for the axis. */
+	const monthLabel = (key: string) => fullMonth(key).replace(/ \d\d(\d\d)$/, ' $1');
 </script>
 
 {#if points.length === 0}

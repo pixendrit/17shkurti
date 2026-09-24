@@ -1,27 +1,22 @@
-import { listOrders } from '$lib/data/orders';
-import type { PageServerLoad } from './$types';
+import { advanceMany, settle } from '$lib/domain/commands/orders';
+import { parseEvent } from '$lib/domain/forms';
+import { PAYMENT_METHODS, type PaymentMethod } from '$lib/domain/model';
+import { ok } from '$lib/domain/result';
+import { shipmentsView } from '$lib/domain/views';
+import { act, load as world } from '$lib/server/shop';
 
-export const load: PageServerLoad = async ({ locals: { db } }) => {
-	const all = await listOrders(db);
-	const row = (o: (typeof all)[number]) => ({
-		id: o.id,
-		code: o.code,
-		customerName: o.customerName,
-		city: o.city,
-		country: o.country,
-		kind: o.kind,
-		trackingRef: o.trackingRef,
-		units: o.econ.units,
-		revenue: o.econ.revenue,
-		since: o.deliveredAt ?? o.shippedAt ?? o.updatedAt
-	});
+export const load = async (event) => shipmentsView(await world(event));
 
-	return {
-		awaitingPickup: all.filter((o) => o.deliveryMethod === 'post' && o.status === 'ready').map(row),
-		withCourier: all.filter((o) => o.deliveryMethod === 'post' && o.status === 'shipped').map(row),
-		toHandOver: all.filter((o) => o.deliveryMethod === 'manual' && ['ready', 'shipped'].includes(o.status)).map(row),
-		unpaid: all
-			.filter((o) => o.kind === 'sale' && o.status === 'delivered' && o.paymentStatus !== 'paid')
-			.map(row)
-	};
+export const actions = {
+	advance: (e) =>
+		act(e, advanceMany, (f) => {
+			const event = parseEvent(f);
+			return event.ok ? ok({ orderIds: f.list('orderId'), event: event.value }) : event;
+		}),
+	settle: (e) =>
+		act(e, settle, (f) => {
+			const m = f.text('method');
+			const method: PaymentMethod = (PAYMENT_METHODS as readonly string[]).includes(m) ? (m as PaymentMethod) : 'cod';
+			return ok({ orderIds: f.list('orderId'), method });
+		})
 };

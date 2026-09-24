@@ -102,7 +102,7 @@ Order     = { id, code: 'HS-0042', customerId, kind, channel, delivery,
 ```
 Status = 'new' | 'in_production' | 'ready' | 'with_courier'
        | 'delivered' | 'returned' | 'cancelled'
-Event  = 'start' | 'make' | 'hand_over' | 'deliver' | 'return' | 'cancel'
+Event  = 'start' | 'make' | 'hand_over' | 'deliver' | 'return' | 'cancel' | 'undo'
 ```
 | from \ event   | start | make  | hand_over (courier) | deliver           | return  | cancel |
 |----------------|-------|-------|---------------------|-------------------|---------|--------|
@@ -112,7 +112,9 @@ Event  = 'start' | 'make' | 'hand_over' | 'deliver' | 'return' | 'cancel'
 | with_courier   |       |       |                     | delivered         | returned |       |
 
 `make` is the only way into `ready`, and it is what takes the order's
-blanks and prints out of stock, and only if they are there.
+blanks and prints out of stock, and only if they are there (and every
+personalised print has arrived). `undo` steps back to where the order was
+before its last event; undoing `make` gives back exactly what it took.
 
 ### Payments
 ```
@@ -126,14 +128,19 @@ settlement is one payment per parcel.
 ```
 Subject  = { kind: 'blank', sku } | { kind: 'print', printId }
 Movement = { id, subject, delta: integer, reason, orderId?, purchaseId?, at }
-Reason   = 'opening' | 'purchase' | 'made' | 'adjustment'
+Reason   = 'opening' | 'purchase' | 'made' | 'unmade' | 'adjustment'
 ```
 What's on the shelf is the sum of a subject's movements. Nothing stores a
 count that could drift from its history.
 
-**Allocation.** Open, unmade orders are served in the order they arrived:
-the oldest order gets stock first. So two orders can never both be "can make"
-with the last shirt.
+**Allocation.** Open, unmade orders are served in the order they arrived,
+subject by subject: the oldest order gets stock first and keeps what it can
+get while it waits for the rest. So two orders can never both be "can make"
+with the last shirt. Making an order only needs the shirts to be on the
+shelf; the allocation is the plan shown on the dashboard.
+
+A count of the shelf is recorded as the difference from what the ledger
+says (`adjustment`), so every number can be explained.
 
 ### Purchases (money out)
 ```
@@ -146,8 +153,10 @@ Purchase =
       description, amount: Cents }
   (each with id, date, isDemo)
 ```
-A blank's cost is the weighted average of what was paid for it; until it has
-been bought through the app, the default from Settings.
+A blank's cost is the weighted average of what was paid for that garment;
+until it has been bought through the app, the default from Settings.
+Deleting a purchase takes its stock back off the shelf, and is refused once
+that stock has been used.
 
 ### Settings
 ```
@@ -164,6 +173,11 @@ exactly one subject per movement). All money columns are `*_cents INTEGER`.
 
 customers · designs · prints · images · orders · order_lines · payments ·
 purchases · purchase_lines · stock_movements · settings · login_attempts
+
+A put writes a whole record with an upsert (never `REPLACE`, which would
+cascade-delete its lines); puts go in dependency order, then deletes in
+reverse, several rows per statement, so a command of any size is a handful of
+statements in one transaction.
 
 Demo data is flagged on orders and purchases; clearing it deletes them with
 their lines, payments and movements, leaving real records untouched.

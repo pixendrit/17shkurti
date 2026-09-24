@@ -22,7 +22,7 @@ import {
 	type Settings,
 	type Subject,
 	type World
-} from '$lib/domain/model';
+} from '../domain/model';
 
 type Row = Record<string, unknown>;
 type Value = string | number | null;

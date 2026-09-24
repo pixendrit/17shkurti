@@ -1,9 +1,7 @@
-import type { DB } from '$lib/data/types';
-
 declare global {
 	namespace App {
 		interface Locals {
-			db: DB;
+			db: D1Database;
 		}
 		interface Platform {
 			env: {
@@ -11,6 +9,9 @@ declare global {
 				APP_PIN: string;
 				SESSION_SECRET: string;
 			};
+		}
+		interface PageData {
+			error?: string;
 		}
 	}
 }

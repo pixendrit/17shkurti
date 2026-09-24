@@ -38,13 +38,15 @@ else
 fi
 
 step "D1 database"
+DB_NAME=hijeshi-eu
 find_db() {
 	npx wrangler d1 list --json 2>/dev/null | node -e \
-		'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s).find(x=>x.name==="hijeshi");console.log(d?(d.uuid??d.id):"")})'
+		'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const d=JSON.parse(s).find(x=>x.name===process.argv[1]);console.log(d?(d.uuid??d.id):"")})' "$DB_NAME"
 }
 DB_ID=$(find_db)
 if [[ -z "$DB_ID" ]]; then
-	npx wrangler d1 create hijeshi >/dev/null
+	# Western Europe: the shop is in Kosovo, and every page reads the database.
+	npx wrangler d1 create "$DB_NAME" --location weur >/dev/null
 	DB_ID=$(find_db)
 	echo "created database $DB_ID"
 else
@@ -54,7 +56,7 @@ fi
 sed -i.bak -E "s/\"database_id\": \"[^\"]*\"/\"database_id\": \"$DB_ID\"/" wrangler.jsonc && rm -f wrangler.jsonc.bak
 
 step "Migrations"
-npx wrangler d1 migrations apply hijeshi --remote
+npx wrangler d1 migrations apply "$DB_NAME" --remote
 
 step "Build"
 pnpm build

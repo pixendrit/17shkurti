@@ -4,7 +4,7 @@
 	 * from the validated categorical order and are always paired with a
 	 * labelled row below, so the bar never relies on colour alone.
 	 */
-	import { money } from '$lib/constants';
+	import { money } from '$lib/ui';
 
 	let { parts, total }: { parts: { label: string; value: number; color: string }[]; total: number } = $props();
 

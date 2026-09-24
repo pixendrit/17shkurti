@@ -10,6 +10,7 @@
 	import ChartLine from '@lucide/svelte/icons/chart-line';
 	import Truck from '@lucide/svelte/icons/truck';
 	import Receipt from '@lucide/svelte/icons/receipt';
+	import Users from '@lucide/svelte/icons/users';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Lock from '@lucide/svelte/icons/lock';
@@ -22,7 +23,8 @@
 		{ href: '/orders', label: 'Porositë', icon: ShoppingBag },
 		{ href: '/shipments', label: 'Dërgesat', icon: Truck },
 		{ href: '/stock', label: 'Stoku', icon: Boxes },
-		{ href: '/expenses', label: 'Shpenzimet', icon: Receipt },
+		{ href: '/purchases', label: 'Blerjet', icon: Receipt },
+		{ href: '/customers', label: 'Klientët', icon: Users },
 		{ href: '/designs', label: 'Dizajnet', icon: Palette },
 		{ href: '/stats', label: 'Statistika', icon: ChartLine },
 		{ href: '/settings', label: 'Cilësimet', icon: Settings }

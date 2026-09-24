@@ -11,10 +11,10 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "hijeshi",
-			// Filled in by scripts/deploy.sh the first time it creates the database.
+			"database_name": "hijeshi-eu",
+			// In Western Europe, near the shop. Filled in by scripts/deploy.sh when it creates it.
 			"database_id": "2162e46b-50b9-4397-9356-c4fa5fa58cb8",
-			"migrations_dir": "drizzle"
+			"migrations_dir": "migrations"
 		}
 	],
 	"observability": { "enabled": true }

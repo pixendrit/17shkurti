@@ -1,21 +1,13 @@
-import { blanks, designs, dtfStock, orderItems, orders, stockLog } from '$lib/data/schema';
-import type { RequestHandler } from './$types';
+import { json } from '@sveltejs/kit';
+import { loadWorld } from '$lib/server/repo';
+import { dayInput } from '$lib/domain/time';
 
-/** Every table as one JSON file — a copy you hold yourself, on top of D1's own backups. */
-export const GET: RequestHandler = async ({ locals: { db } }) => {
-	const dump = {
-		exportedAt: new Date().toISOString(),
-		designs: await db.select().from(designs),
-		blanks: await db.select().from(blanks),
-		dtfStock: await db.select().from(dtfStock),
-		orders: await db.select().from(orders),
-		orderItems: await db.select().from(orderItems),
-		stockLog: await db.select().from(stockLog)
-	};
-	return new Response(JSON.stringify(dump, null, 2), {
+/** Everything except the pictures, as one JSON file. */
+export async function GET({ locals }) {
+	const world = await loadWorld(locals.db);
+	return json(world, {
 		headers: {
-			'content-type': 'application/json',
-			'content-disposition': `attachment; filename="hijeshi-${dump.exportedAt.slice(0, 10)}.json"`
+			'content-disposition': `attachment; filename="hijeshi-${dayInput(Math.floor(Date.now() / 1000))}.json"`
 		}
 	});
-};
+}

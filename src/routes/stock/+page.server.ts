@@ -1,24 +1,17 @@
-import { shoppingList } from '$lib/data/stock';
-import { asc } from 'drizzle-orm';
-import { blanks, designs, dtfStock } from '$lib/data/schema';
-import type { PageServerLoad } from './$types';
+import { countStock } from '$lib/domain/commands/stock';
+import { parseSubject, whole } from '$lib/domain/forms';
+import { fail, ok } from '$lib/domain/result';
+import { stockView } from '$lib/domain/views';
+import { act, load as world } from '$lib/server/shop';
 
-export const load: PageServerLoad = async ({ locals: { db } }) => {
-	const allDesigns = await db.select().from(designs);
-	const designName = new Map(allDesigns.map((d) => [d.id, d.name]));
+export const load = async (event) => stockView(await world(event));
 
-	const dtf = await db.select().from(dtfStock);
-	const list = await shoppingList(db);
-
-	return {
-		blanks: await db
-			.select()
-			.from(blanks)
-			.orderBy(asc(blanks.productType), asc(blanks.color), asc(blanks.size)),
-		dtf: dtf.map((d) => ({ ...d, designName: designName.get(d.designId) ?? 'I panjohur' })),
-		designs: allDesigns.filter((d) => !d.archived),
-		toBuy: list.blanks,
-		toPrint: list.transfers.map((t) => ({ ...t, designName: designName.get(t.designId) ?? 'I panjohur' })),
-		custom: list.custom
-	};
+export const actions = {
+	count: (e) =>
+		act(e, countStock, (f) => {
+			const subject = parseSubject(f);
+			if (!subject.ok) return subject;
+			const count = whole(f.text('count'));
+			return count == null ? fail('Shkruani sa copë janë.') : ok({ subject: subject.value, count, note: f.text('note') });
+		})
 };
