@@ -34,3 +34,6 @@ vite.config.ts.timestamp-*
 # Local Cloudflare secrets
 .dev.vars
 .wrangler/
+
+# Local logs
+*.log
