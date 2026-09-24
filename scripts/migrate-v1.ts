@@ -4,6 +4,10 @@
  *
  *   tsx scripts/migrate-v1.ts <old-export.sql> <new-data.sql>
  *
+ * writes new-data.sql and new-data.images.json. Load the pictures first (their
+ * rows are too big for one SQL statement, so they go as bound parameters
+ * through D1's REST API), then `wrangler d1 execute <db> --remote --file`.
+ *
  * Reads a `wrangler d1 export` of the old database, maps every record to the
  * new data definitions, writes them through the real repository into a fresh
  * database with the new schema (so every CHECK constraint is applied), checks
@@ -235,8 +239,13 @@ check('paid orders', w.payments.length, all(`SELECT COUNT(*) n FROM orders WHERE
 check('money spent (cents)', s.spent, cents(all('SELECT SUM(amount) t FROM expenses')[0].t));
 console.log('net (all time):', s.net / 100, '€ · outstanding:', s.outstanding / 100, '€ · collected:', s.collected / 100, '€');
 
-// ---- Dump the data as SQL for `wrangler d1 execute --file`.
-const TABLES = ['images', 'customers', 'designs', 'prints', 'orders', 'order_lines', 'payments', 'purchases', 'purchase_lines', 'stock_movements', 'garment_costs', 'courier_costs', 'settings'];
+// ---- Dump the data as SQL for `wrangler d1 execute --file`. Pictures go to
+// a separate JSON file: D1 limits one SQL statement to 100 KB, so they must
+// be sent as bound parameters (see the REST call in the README), first.
+const imageRows = fresh.raw.prepare('SELECT * FROM images').all();
+writeFileSync(outFile.replace(/\.sql$/, '') + '.images.json', JSON.stringify(imageRows));
+console.log(`wrote ${imageRows.length} pictures to ${outFile.replace(/\.sql$/, '')}.images.json`);
+const TABLES = ['customers', 'designs', 'prints', 'orders', 'order_lines', 'payments', 'purchases', 'purchase_lines', 'stock_movements', 'garment_costs', 'courier_costs', 'settings'];
 const lit = (v: unknown) => (v == null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const out: string[] = [];
 for (const t of TABLES) {

@@ -13,7 +13,7 @@
 			"binding": "DB",
 			"database_name": "hijeshi-eu",
 			// In Western Europe, near the shop. Filled in by scripts/deploy.sh when it creates it.
-			"database_id": "2162e46b-50b9-4397-9356-c4fa5fa58cb8",
+			"database_id": "b9952cbf-d828-42a9-8edf-a147d97e503b",
 			"migrations_dir": "migrations"
 		}
 	],

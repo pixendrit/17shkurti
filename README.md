@@ -84,7 +84,10 @@ pnpm db:migrate:local            # creates a local D1 database under .wrangler/
 pnpm dev                         # or: pnpm preview, which runs the real Workers runtime
 pnpm test                        # the domain's examples, and the repository against SQLite
 pnpm check                       # types
+pnpm test:e2e http://127.0.0.1:8787 <PIN>   # the whole app in a browser, against `pnpm preview`
 ```
+
+The end-to-end test creates orders, so run it on a local database only.
 
 A schema change is a new numbered file in `migrations/`.
 

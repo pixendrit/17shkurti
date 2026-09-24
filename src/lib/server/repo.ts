@@ -361,7 +361,9 @@ function upserts(table: Table, rows: Value[][]): [string, Value[]][] {
 	const cols = COLS[table];
 	const key = table === 'purchase_lines' ? ['purchase_id', 'position'] : ['id'];
 	const set = cols.filter((c) => !key.includes(c)).map((c) => `${c} = excluded.${c}`).join(', ');
-	return chunk(rows, Math.floor(MAX_PARAMS / cols.length)).map((part) => [
+	// A picture is up to ~1 MB of data: one per statement keeps each request small.
+	const perStatement = table === 'images' ? 1 : Math.floor(MAX_PARAMS / cols.length);
+	return chunk(rows, perStatement).map((part) => [
 		`INSERT INTO ${table} (${cols.join(', ')}) VALUES ${part.map(() => `(${cols.map(() => '?').join(', ')})`).join(', ')} ` +
 			`ON CONFLICT (${key.join(', ')}) DO UPDATE SET ${set}`,
 		part.flat()
