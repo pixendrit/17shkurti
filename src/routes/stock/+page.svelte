@@ -116,7 +116,7 @@
 				</select>
 				<input bind:value={nb.quantity} type="number" min="0" placeholder="Sasia" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 				<div class="flex gap-2">
-					<input bind:value={nb.unitCost} type="number" min="0" placeholder="Kosto" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+					<input bind:value={nb.unitCost} type="number" min="0" step="0.01" inputmode="decimal" placeholder="Kosto €" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 					<button class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">Shto</button>
 				</div>
 			</form>
@@ -166,7 +166,7 @@
 				</select>
 				<input bind:value={nd.quantity} type="number" min="0" placeholder="Sasia" class="rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 				<div class="flex gap-2">
-					<input bind:value={nd.unitCost} type="number" min="0" placeholder="Kosto" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+					<input bind:value={nd.unitCost} type="number" min="0" step="0.01" inputmode="decimal" placeholder="Kosto €" class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 					<button class="rounded-lg bg-slate-900 px-3 py-1.5 text-sm font-medium text-white">Ruaj</button>
 				</div>
 			</form>

@@ -8,6 +8,7 @@
 	import Copy from '@lucide/svelte/icons/copy';
 
 	import { base } from '$app/paths';
+	import DesignThumb from '$lib/components/DesignThumb.svelte';
 	import { deleteOrder, markAsMade, setOrderStatus, setPaymentStatus } from '$lib/client/actions';
 
 	let { data } = $props();
@@ -93,7 +94,10 @@
 			<div class="divide-y divide-slate-100">
 				{#each data.items as item (item.id)}
 					<div class="flex items-start justify-between gap-3 px-4 py-3">
-						<div class="min-w-0">
+						{#if item.designId}
+							<DesignThumb designId={item.designId} images={item.images} side="back" size="size-14" alt={item.designName ?? ''} />
+						{/if}
+						<div class="min-w-0 flex-1">
 							<p class="font-medium text-slate-900">
 								{item.quantity}× {productLabel(item.productType)} · {colorLabel(item.color)} · {item.size}
 							</p>

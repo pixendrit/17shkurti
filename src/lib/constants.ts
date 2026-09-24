@@ -64,7 +64,7 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
 /** Statuses that still need blanks and transfers reserved for them. */
 export const OPEN_STATUSES = ['new', 'confirmed', 'in_production', 'ready'];
 
-export const CURRENCY = 'L';
+export const CURRENCY = '€';
 
 /*
  * Formatted by hand rather than with toLocaleString('sq-AL'): the page renders
@@ -73,11 +73,18 @@ export const CURRENCY = 'L';
  */
 export const MONTHS = ['jan', 'shk', 'mar', 'pri', 'maj', 'qer', 'kor', 'gsh', 'sht', 'tet', 'nën', 'dhj'];
 
+/**
+ * "25 €", "24,50 €", "1 250 €". Cents only appear when there are some, which
+ * keeps the dashboard tiles short. Worked in whole cents so sums of prices
+ * stored as floats never print as 24,499999.
+ */
 export function money(n: number): string {
-	const rounded = Math.round(n);
-	// Non-breaking spaces, so "4 500 L" never wraps across lines in a narrow tile.
-	const digits = String(Math.abs(rounded)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
-	return `${rounded < 0 ? '−' : ''}${digits}\u00a0${CURRENCY}`;
+	const cents = Math.round(n * 100);
+	const abs = Math.abs(cents);
+	// Non-breaking spaces, so an amount never wraps across lines in a narrow tile.
+	const whole = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+	const frac = abs % 100 ? `,${String(abs % 100).padStart(2, '0')}` : '';
+	return `${cents < 0 ? '−' : ''}${whole}${frac}\u00a0${CURRENCY}`;
 }
 
 export function formatDate(ts: number | null): string {

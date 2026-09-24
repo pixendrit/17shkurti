@@ -50,3 +50,4 @@ export const setOnOrder = (id: number, onOrder: number) => call('setOnOrder', id
 export const receiveDtf = (id: number) => call('receiveDtf', id);
 export const createDesign = (name: string, notes: string) => call('createDesign', name, notes);
 export const toggleArchive = (id: number) => call('toggleArchive', id);
+export const renameDesign = (id: number, name: string) => call('renameDesign', id, name);

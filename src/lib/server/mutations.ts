@@ -218,16 +218,28 @@ export async function receiveDtf(db: DB, id: number) {
 	});
 }
 
-export async function createDesign(db: DB, name: string, notes: string): Promise<string | null> {
-	if (!name.trim()) return 'Jepini dizajnit një emër.';
-	await run(db, async (db) => {
+/** Returns the new design's id, so its pictures can be uploaded straight after. */
+export async function createDesign(
+	db: DB,
+	name: string,
+	notes: string
+): Promise<{ error: string } | { id: number }> {
+	if (!name.trim()) return { error: 'Jepini dizajnit një emër.' };
+	const id = await run(db, async (db) => {
 		const [design] = await db
 			.insert(designs)
 			.values({ name: name.trim(), notes: notes.trim() || null })
 			.returning();
 		// Start tracking its transfer stock straight away, at zero.
 		await db.insert(dtfStock).values({ designId: design.id, quantity: 0 });
+		return design.id;
 	});
+	return { id };
+}
+
+export async function renameDesign(db: DB, id: number, name: string): Promise<string | null> {
+	if (!name.trim()) return 'Jepini dizajnit një emër.';
+	await db.update(designs).set({ name: name.trim() }).where(eq(designs.id, id));
 	return null;
 }
 

@@ -15,6 +15,13 @@
       "when": 1790150813796,
       "tag": "0001_premium_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790213989295,
+      "tag": "0002_legal_vertigo",
+      "breakpoints": true
     }
   ]
 }

@@ -4,6 +4,7 @@
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	import { base } from '$app/paths';
+	import DesignThumb from '$lib/components/DesignThumb.svelte';
 	import { createOrder } from '$lib/client/actions';
 
 	let { data } = $props();
@@ -18,6 +19,18 @@
 	let paymentMethod = $state('cash_on_delivery');
 	let notes = $state('');
 
+	const PRICE_KEY = 'hijeshi.lastPrice';
+
+	/** Most orders cost the same, so start from the last price used on this device. */
+	function rememberedPrice(): number | null {
+		try {
+			const v = Number(localStorage.getItem(PRICE_KEY));
+			return v > 0 ? v : null;
+		} catch {
+			return null;
+		}
+	}
+
 	async function submit(e: Event) {
 		e.preventDefault();
 		error = null;
@@ -25,8 +38,14 @@
 		if (!phone.trim()) return (error = 'Numri i telefonit është i detyrueshëm.');
 		const items = rows
 			.filter((r) => r.productType && r.quantity > 0)
-			.map((r) => ({ ...r, designId: r.designId ? Number(r.designId) : null }));
+			.map((r) => ({ ...r, unitPrice: Number(r.unitPrice) || 0, designId: r.designId ? Number(r.designId) : null }));
 		if (items.length === 0) return (error = 'Shtoni të paktën një artikull.');
+		if (items.some((r) => !(Number(r.unitPrice) > 0))) return (error = 'Vendosni çmimin për çdo artikull.');
+		try {
+			localStorage.setItem(PRICE_KEY, String(items[items.length - 1].unitPrice));
+		} catch {
+			/* storage unavailable — only the convenience is lost */
+		}
 
 		saving = true;
 		try {
@@ -55,16 +74,16 @@
 		size: string;
 		designId: string;
 		quantity: number;
-		unitPrice: number;
+		unitPrice: number | null;
 	};
 
 	let rows = $state<Row[]>([
-		{ productType: 'T-Shirt', color: 'White', size: 'M', designId: '', quantity: 1, unitPrice: 1500 }
+		{ productType: 'T-Shirt', color: 'White', size: 'M', designId: '', quantity: 1, unitPrice: rememberedPrice() }
 	]);
 	let shippingFee = $state(0);
 	let discount = $state(0);
 
-	const subtotal = $derived(rows.reduce((a, r) => a + r.quantity * r.unitPrice, 0));
+	const subtotal = $derived(rows.reduce((a, r) => a + r.quantity * (r.unitPrice ?? 0), 0));
 	const total = $derived(subtotal + shippingFee - discount);
 
 	function addRow() {
@@ -75,7 +94,7 @@
 			size: 'M',
 			designId: last?.designId ?? '',
 			quantity: 1,
-			unitPrice: last?.unitPrice ?? 1500
+			unitPrice: last?.unitPrice ?? rememberedPrice()
 		});
 	}
 </script>
@@ -163,6 +182,16 @@
 							</select>
 						</label>
 					</div>
+					{#if row.designId}
+						{@const chosen = data.designs.find((d) => String(d.id) === row.designId)}
+						{#if chosen && (chosen.images.front || chosen.images.back)}
+							<!-- A look at the actual print, so the right design gets picked. -->
+							<div class="mt-2 flex gap-2">
+								<DesignThumb designId={chosen.id} images={chosen.images} side="front" size="size-20" alt="{chosen.name} — para" />
+								<DesignThumb designId={chosen.id} images={chosen.images} side="back" size="size-20" alt="{chosen.name} — pas" />
+							</div>
+						{/if}
+					{/if}
 					<div class="mt-2 flex items-end gap-2">
 						<label class="block w-20">
 							<span class="mb-1 block text-[11px] font-medium text-slate-500">Sasia</span>
@@ -170,10 +199,10 @@
 						</label>
 						<label class="block w-32">
 							<span class="mb-1 block text-[11px] font-medium text-slate-500">Çmimi për copë</span>
-							<input type="number" min="0" step="1" bind:value={row.unitPrice} class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
+							<input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" bind:value={row.unitPrice} class="w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm" />
 						</label>
 						<p class="tabular flex-1 text-right text-sm font-medium text-slate-700">
-							{money(row.quantity * row.unitPrice)}
+							{money(row.quantity * (row.unitPrice ?? 0))}
 						</p>
 						{#if rows.length > 1}
 							<button type="button" onclick={() => rows.splice(i, 1)} aria-label="Hiq artikullin" class="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600">
@@ -191,11 +220,11 @@
 		<div class="grid gap-3 sm:grid-cols-4">
 			<label class="block">
 				<span class="mb-1 block text-xs font-medium text-slate-600">Transporti</span>
-				<input type="number" min="0" bind:value={shippingFee} class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+				<input type="number" min="0" step="0.01" inputmode="decimal" bind:value={shippingFee} class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
 			</label>
 			<label class="block">
 				<span class="mb-1 block text-xs font-medium text-slate-600">Zbritja</span>
-				<input type="number" min="0" bind:value={discount} class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+				<input type="number" min="0" step="0.01" inputmode="decimal" bind:value={discount} class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
 			</label>
 			<label class="block">
 				<span class="mb-1 block text-xs font-medium text-slate-600">E paguar?</span>

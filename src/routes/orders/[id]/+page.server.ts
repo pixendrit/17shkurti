@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { getOrder, orderCost, orderTotal } from '$lib/data/orders';
 import { orderReadiness } from '$lib/data/stock';
 import { designs, orderItems } from '$lib/data/schema';
+import { imageIndex } from '$lib/data/images';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals: { db } }) => {
@@ -14,6 +15,7 @@ export const load: PageServerLoad = async ({ params, locals: { db } }) => {
 	const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
 	const allDesigns = await db.select().from(designs);
 	const designName = new Map(allDesigns.map((d) => [d.id, d.name]));
+	const images = await imageIndex(db);
 
 	const readiness = await orderReadiness(db, id);
 	const readyById = new Map(readiness.items.map((r) => [r.itemId, r]));
@@ -24,6 +26,7 @@ export const load: PageServerLoad = async ({ params, locals: { db } }) => {
 		items: items.map((i) => ({
 			...i,
 			designName: i.designId ? (designName.get(i.designId) ?? null) : null,
+			images: i.designId ? (images.get(i.designId) ?? {}) : {},
 			readiness: readyById.get(i.id) ?? { needBlanks: 0, needTransfers: 0, ready: true }
 		})),
 		ready: readiness.ready,

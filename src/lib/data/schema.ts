@@ -1,5 +1,5 @@
 import { relations, sql } from 'drizzle-orm';
-import { integer, sqliteTable, text, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import { integer, sqliteTable, text, real, uniqueIndex, index, primaryKey } from 'drizzle-orm/sqlite-core';
 
 const now = sql`(unixepoch())`;
 
@@ -152,6 +152,29 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 	order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
 	design: one(designs, { fields: [orderItems.designId], references: [designs.id] })
 }));
+
+/**
+ * Front and back pictures of a design, as base64. Kept in D1 rather than R2
+ * because R2 needs a card on file even on the free tier. Images are shrunk in
+ * the browser before upload (see $lib/client/image.ts), so each is ~50-150 KB.
+ * Kept out of `designs` so listing designs never drags image data along.
+ */
+export const designImages = sqliteTable(
+	'design_images',
+	{
+		designId: integer('design_id')
+			.notNull()
+			.references(() => designs.id, { onDelete: 'cascade' }),
+		side: text('side').notNull(), // 'front' | 'back'
+		mime: text('mime').notNull(),
+		data: text('data').notNull(),
+		updatedAt: integer('updated_at').notNull().default(now)
+	},
+	(t) => [primaryKey({ columns: [t.designId, t.side] })]
+);
+
+export const IMAGE_SIDES = ['front', 'back'] as const;
+export type ImageSide = (typeof IMAGE_SIDES)[number];
 
 /**
  * Failed PIN attempts per IP. Kept in the database rather than in memory

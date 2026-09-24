@@ -19,6 +19,7 @@ const ops = {
 	setOnOrder: m.setOnOrder,
 	receiveDtf: m.receiveDtf,
 	createDesign: m.createDesign,
+	renameDesign: m.renameDesign,
 	toggleArchive: m.toggleArchive
 } as const;
 
