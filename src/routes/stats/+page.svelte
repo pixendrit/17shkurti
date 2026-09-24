@@ -2,8 +2,8 @@
 	import StatTile from '$lib/components/StatTile.svelte';
 	import BarList from '$lib/components/BarList.svelte';
 	import TrendChart from '$lib/components/TrendChart.svelte';
-	import { money, plural, MONTHS, CHANNEL_LABELS } from '$lib/constants';
-	import { base } from '$app/paths';
+	import SplitBar from '$lib/components/SplitBar.svelte';
+	import { money, plural, MONTHS, CHANNEL_LABELS, COUNTRY_LABELS, DELIVERY_LABELS, EXPENSE_LABELS, colorLabel } from '$lib/constants';
 
 	let { data } = $props();
 	let showTable = $state(false);
@@ -14,47 +14,69 @@
 		{ days: 365, label: '1 vit' },
 		{ days: 0, label: 'Gjithë kohën' }
 	];
-
 	const pct = (n: number) => `${Math.round(n * 100)}%`;
+
+	// Categorical slots 1–6 in their validated order (see dataviz palette).
+	const perShirt = $derived([
+		{ label: 'Bluza', value: data.perShirt.blank, color: '#2a78d6' },
+		{ label: 'DTF', value: data.perShirt.dtf, color: '#eb6834' },
+		{ label: 'Puna', value: data.perShirt.labor, color: '#1baf7a' },
+		{ label: 'Paketimi', value: data.perShirt.packaging, color: '#eda100' },
+		{ label: 'Posta', value: data.perShirt.shipping, color: '#e87ba4' },
+		{ label: 'Fitimi', value: Math.max(0, data.perShirt.profit), color: '#008300' }
+	]);
+
+	const note = (n: number, units: number) => `· ${plural(n, 'porosi', 'porosi')} · ${units} copë`;
 </script>
 
 <svelte:head><title>Statistika — Hijeshi</title></svelte:head>
 
-<!-- viz-root carries the chart colour roles, light and dark -->
 <div class="viz-root">
 	<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
 		<h1 class="text-xl font-semibold text-slate-900">Statistika</h1>
 		<div class="flex gap-1">
 			{#each ranges as r (r.days)}
-				<a
-					href="{base}/stats?days={r.days}"
-					class="rounded-lg px-3 py-1.5 text-sm font-medium
-					{data.days === r.days ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}"
-				>
-					{r.label}
-				</a>
+				<a href="/stats?days={r.days}" class="rounded-lg px-3 py-1.5 text-sm font-medium {data.days === r.days ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}">{r.label}</a>
 			{/each}
 		</div>
 	</div>
 
-	<div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-		<StatTile label="Të ardhurat" value={money(data.revenue)} sub={plural(data.orderCount, 'porosi', 'porosi')} />
-		<StatTile label="Fitimi" value={money(data.profit)} sub="{pct(data.margin)} marzh" tone="good" />
-		<StatTile label="Të arkëtuara" value={money(data.collected)} sub="para në dorë" />
-		<StatTile
-			label="Për t'u arkëtuar"
-			value={money(data.outstanding)}
-			sub="porosi të papaguara"
-			tone={data.outstanding > 0 ? 'warn' : 'neutral'}
-		/>
+	<div class="mb-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+		<StatTile label="Të ardhurat" value={money(data.revenue)} sub="{plural(data.orderCount, 'shitje', 'shitje')} · {data.unitsSold} copë" />
+		<StatTile label="Fitimi neto" value={money(data.net)} sub="pas dhuratave dhe kthimeve" tone={data.net >= 0 ? 'good' : 'warn'} />
+		<StatTile label="Fitimi + puna juaj" value={money(data.netWithLabor)} sub="nëse punën e bëni vetë" tone="good" />
+		<StatTile label="Marzha e shitjeve" value={pct(data.margin)} sub="mesatarja {money(data.avgOrder)} / porosi" />
 	</div>
 
 	<div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-		<StatTile label="Artikuj të shitur" value={String(data.units)} />
-		<StatTile label="Mesatarja për porosi" value={money(data.avgOrder)} />
-		<StatTile label="Kosto e mallit" value={money(data.cost)} />
-		<StatTile label="Porositë" value={String(data.orderCount)} />
+		<StatTile label="Të arkëtuara" value={money(data.collected)} sub="para në dorë" />
+		<StatTile label="Për t'u arkëtuar" value={money(data.outstanding)} sub="shitje të papaguara" tone={data.outstanding > 0 ? 'warn' : 'neutral'} />
+		<StatTile label="Dhurata / influencer" value={money(data.gifts.cost)} sub="{plural(data.gifts.orders, 'dhuratë', 'dhurata')} · {data.gifts.units} copë" />
+		<StatTile label="Kthime" value={money(data.returns.loss)} sub={plural(data.returns.orders, 'pako e kthyer', 'pako të kthyera')} tone={data.returns.orders ? 'warn' : 'neutral'} />
 	</div>
+
+	<section class="mb-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+		<header class="border-b border-slate-100 px-4 py-3">
+			<h2 class="text-sm font-semibold text-slate-900">Ku shkon një bluzë e shitur mesatarisht {money(data.perShirt.price)}</h2>
+			<p class="text-xs text-slate-500">Mesatare mbi {data.unitsSold} bluza të shitura</p>
+		</header>
+		<div class="p-4"><SplitBar parts={perShirt} total={data.perShirt.price} /></div>
+	</section>
+
+	<section class="mb-4 rounded-xl border border-slate-200 bg-white shadow-sm">
+		<header class="border-b border-slate-100 px-4 py-3">
+			<h2 class="text-sm font-semibold text-slate-900">Paratë</h2>
+			<p class="text-xs text-slate-500">Çfarë hyri dhe çfarë doli me të vërtetë në këtë periudhë</p>
+		</header>
+		<dl class="divide-y divide-slate-100 text-sm">
+			<div class="flex justify-between px-4 py-2"><dt class="text-slate-600">Të arkëtuara nga shitjet</dt><dd class="tabular font-medium text-slate-900">{money(data.collected)}</dd></div>
+			{#each data.expensesByCategory as x (x.category)}
+				<div class="flex justify-between px-4 py-2"><dt class="text-slate-600">− {EXPENSE_LABELS[x.category] ?? x.category}</dt><dd class="tabular text-slate-700">{money(x.amount)}</dd></div>
+			{/each}
+			<div class="flex justify-between px-4 py-2"><dt class="text-slate-600">− Posta (tarifa e postierit)</dt><dd class="tabular text-slate-700">{money(data.courierFees)}</dd></div>
+			<div class="flex justify-between px-4 py-2.5 font-semibold {data.cashBalance >= 0 ? 'text-emerald-700' : 'text-rose-700'}"><dt>Bilanci</dt><dd class="tabular">{money(data.cashBalance)}</dd></div>
+		</dl>
+	</section>
 
 	<section class="mb-4 rounded-xl border border-slate-200 bg-white shadow-sm">
 		<header class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
@@ -62,72 +84,44 @@
 				<h2 class="text-sm font-semibold text-slate-900">Të ardhurat sipas muajve</h2>
 				<p class="text-xs text-slate-500">Pa porositë e anuluara</p>
 			</div>
-			<button
-				onclick={() => (showTable = !showTable)}
-				class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50"
-			>
-				{showTable ? 'Grafiku' : 'Tabela'}
-			</button>
+			<button onclick={() => (showTable = !showTable)} class="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50">{showTable ? 'Grafiku' : 'Tabela'}</button>
 		</header>
 		<div class="p-4">
 			{#if showTable}
 				<table class="w-full text-sm">
-					<thead>
-						<tr class="border-b border-slate-100 text-left text-xs text-slate-500">
-							<th class="pb-2 font-medium">Muaji</th>
-							<th class="pb-2 text-right font-medium">Porosi</th>
-							<th class="pb-2 text-right font-medium">Të ardhura</th>
-							<th class="pb-2 text-right font-medium">Fitimi</th>
-						</tr>
-					</thead>
+					<thead><tr class="border-b border-slate-100 text-left text-xs text-slate-500"><th class="pb-2 font-medium">Muaji</th><th class="pb-2 text-right font-medium">Porosi</th><th class="pb-2 text-right font-medium">Të ardhura</th><th class="pb-2 text-right font-medium">Fitimi</th></tr></thead>
 					<tbody>
 						{#each data.byMonth as m (m.month)}
-							<tr class="border-b border-slate-50">
-								<td class="py-1.5">{MONTHS[Number(m.month.slice(5)) - 1]} {m.month.slice(0, 4)}</td>
-								<td class="tabular py-1.5 text-right">{m.orders}</td>
-								<td class="tabular py-1.5 text-right">{money(m.revenue)}</td>
-								<td class="tabular py-1.5 text-right">{money(m.profit)}</td>
-							</tr>
+							<tr class="border-b border-slate-50"><td class="py-1.5">{MONTHS[Number(m.month.slice(5)) - 1]} {m.month.slice(0, 4)}</td><td class="tabular py-1.5 text-right">{m.orders}</td><td class="tabular py-1.5 text-right">{money(m.revenue)}</td><td class="tabular py-1.5 text-right">{money(m.profit)}</td></tr>
 						{/each}
 					</tbody>
 				</table>
 			{:else}
-				<TrendChart
-					points={data.byMonth.map((m) => ({ x: m.month, y: m.revenue }))}
-					format={money}
-					label="Të ardhurat"
-				/>
+				<TrendChart points={data.byMonth.map((m) => ({ x: m.month, y: m.revenue }))} format={money} label="Të ardhurat" />
 			{/if}
 		</div>
 	</section>
 
-	<div class="grid gap-4 lg:grid-cols-2">
+	<div class="grid gap-4 *:min-w-0 lg:grid-cols-2">
 		<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-			<header class="border-b border-slate-100 px-4 py-3">
-				<h2 class="text-sm font-semibold text-slate-900">Nga vijnë porositë</h2>
-			</header>
-			<div class="p-4">
-				<BarList
-					rows={data.byChannel.map((c) => ({
-						label: CHANNEL_LABELS[c.channel] ?? c.channel,
-						value: c.revenue,
-						note: `· ${c.orders}`
-					}))}
-					format={money}
-				/>
-			</div>
+			<header class="border-b border-slate-100 px-4 py-3"><h2 class="text-sm font-semibold text-slate-900">Nga vijnë porositë</h2></header>
+			<div class="p-4"><BarList rows={data.byChannel.map((c) => ({ label: CHANNEL_LABELS[c.key] ?? c.key, value: c.revenue, note: note(c.orders, c.units) }))} format={money} /></div>
 		</section>
-
 		<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-			<header class="border-b border-slate-100 px-4 py-3">
-				<h2 class="text-sm font-semibold text-slate-900">Dizajnet më të shitura</h2>
-			</header>
-			<div class="p-4">
-				<BarList
-					rows={data.byDesign.slice(0, 8).map((d) => ({ label: d.name, value: d.units }))}
-					format={(n) => `${n}`}
-				/>
-			</div>
+			<header class="border-b border-slate-100 px-4 py-3"><h2 class="text-sm font-semibold text-slate-900">Sipas shtetit</h2></header>
+			<div class="p-4"><BarList rows={data.byCountry.map((c) => ({ label: COUNTRY_LABELS[c.key] ?? c.key, value: c.revenue, note: note(c.orders, c.units) }))} format={money} /></div>
+		</section>
+		<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+			<header class="border-b border-slate-100 px-4 py-3"><h2 class="text-sm font-semibold text-slate-900">Posta apo dorëzim personal</h2></header>
+			<div class="p-4"><BarList rows={data.byDelivery.map((c) => ({ label: DELIVERY_LABELS[c.key] ?? c.key, value: c.revenue, note: note(c.orders, c.units) }))} format={money} /></div>
+		</section>
+		<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+			<header class="border-b border-slate-100 px-4 py-3"><h2 class="text-sm font-semibold text-slate-900">Dizajnet më të shitura</h2></header>
+			<div class="p-4"><BarList rows={data.byDesign.slice(0, 8).map((d) => ({ label: d.name, value: d.units }))} format={(n) => `${n} copë`} /></div>
+		</section>
+		<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+			<header class="border-b border-slate-100 px-4 py-3"><h2 class="text-sm font-semibold text-slate-900">Sipas ngjyrës</h2></header>
+			<div class="p-4"><BarList rows={data.byColor.map((c) => ({ label: colorLabel(c.color), value: c.units }))} format={(n) => `${n} copë`} /></div>
 		</section>
 	</div>
 </div>

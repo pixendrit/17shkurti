@@ -1,5 +1,6 @@
 import { desc, eq, like, or, inArray, sql } from 'drizzle-orm';
 import { designs, orderItems, orders } from './schema';
+import { economics } from './economics';
 import type { DB } from './types';
 
 export async function nextOrderCode(db: DB): Promise<string> {
@@ -15,31 +16,35 @@ export async function nextOrderCode(db: DB): Promise<string> {
 	}
 }
 
-export function orderTotal(
-	items: { quantity: number; unitPrice: number }[],
-	shippingFee = 0,
-	discount = 0
-) {
-	const subtotal = items.reduce((a, i) => a + i.quantity * i.unitPrice, 0);
-	return { subtotal, total: subtotal + shippingFee - discount };
-}
-
-export function orderCost(items: { quantity: number; unitCost: number }[]) {
-	return items.reduce((a, i) => a + i.quantity * i.unitCost, 0);
-}
-
 export async function getOrder(db: DB, id: number) {
 	const [row] = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
 	return row ?? null;
 }
 
-export async function listOrders(db: DB, opts: { status?: string; q?: string } = {}) {
+export type OrderFilters = {
+	status?: string;
+	q?: string;
+	channel?: string;
+	kind?: string;
+	delivery?: string;
+};
+
+export async function listOrders(db: DB, f: OrderFilters = {}) {
 	const conditions = [];
-	if (opts.status && opts.status !== 'all') conditions.push(eq(orders.status, opts.status));
-	if (opts.q) {
-		const term = `%${opts.q}%`;
+	if (f.status && f.status !== 'all') conditions.push(eq(orders.status, f.status));
+	if (f.channel) conditions.push(eq(orders.channel, f.channel));
+	if (f.kind) conditions.push(eq(orders.kind, f.kind));
+	if (f.delivery) conditions.push(eq(orders.deliveryMethod, f.delivery));
+	if (f.q) {
+		const term = `%${f.q}%`;
 		conditions.push(
-			or(like(orders.customerName, term), like(orders.phone, term), like(orders.code, term))!
+			or(
+				like(orders.customerName, term),
+				like(orders.phone, term),
+				like(orders.code, term),
+				like(orders.city, term),
+				like(orders.trackingRef, term)
+			)!
 		);
 	}
 
@@ -47,30 +52,28 @@ export async function listOrders(db: DB, opts: { status?: string; q?: string } =
 		.select()
 		.from(orders)
 		.where(conditions.length ? sql`${sql.join(conditions, sql` and `)}` : undefined)
-		.orderBy(desc(orders.createdAt));
+		.orderBy(desc(orders.createdAt), desc(orders.id));
 
 	if (rows.length === 0) return [];
 
-	const items = await db
-		.select()
-		.from(orderItems)
-		.where(inArray(orderItems.orderId, rows.map((r) => r.id)));
+	// D1 caps bound parameters per query, so fetch items in chunks.
+	const items: (typeof orderItems.$inferSelect)[] = [];
+	for (let i = 0; i < rows.length; i += 80) {
+		const ids = rows.slice(i, i + 80).map((r) => r.id);
+		items.push(...(await db.select().from(orderItems).where(inArray(orderItems.orderId, ids))));
+	}
 	const allDesigns = await db.select().from(designs);
 	const designName = new Map(allDesigns.map((d) => [d.id, d.name]));
 
 	return rows.map((o) => {
 		const mine = items.filter((i) => i.orderId === o.id);
-		const { subtotal, total } = orderTotal(mine, o.shippingFee, o.discount);
 		return {
 			...o,
 			items: mine.map((i) => ({
 				...i,
 				designName: i.designId ? (designName.get(i.designId) ?? null) : null
 			})),
-			units: mine.reduce((a, i) => a + i.quantity, 0),
-			subtotal,
-			total,
-			cost: orderCost(mine)
+			econ: economics(o, mine)
 		};
 	});
 }

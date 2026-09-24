@@ -8,24 +8,39 @@
 	import Boxes from '@lucide/svelte/icons/boxes';
 	import Palette from '@lucide/svelte/icons/palette';
 	import ChartLine from '@lucide/svelte/icons/chart-line';
+	import Truck from '@lucide/svelte/icons/truck';
+	import Receipt from '@lucide/svelte/icons/receipt';
+	import Settings from '@lucide/svelte/icons/settings';
+	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Lock from '@lucide/svelte/icons/lock';
 	import Download from '@lucide/svelte/icons/download';
 
 	let { children } = $props();
 
 	const nav = [
-		{ href: `${base}/`, label: 'Paneli', icon: LayoutDashboard },
-		{ href: `${base}/orders`, label: 'Porositë', icon: ShoppingBag },
-		{ href: `${base}/stock`, label: 'Stoku', icon: Boxes },
-		{ href: `${base}/designs`, label: 'Dizajnet', icon: Palette },
-		{ href: `${base}/stats`, label: 'Statistika', icon: ChartLine }
+		{ href: '/', label: 'Paneli', icon: LayoutDashboard },
+		{ href: '/orders', label: 'Porositë', icon: ShoppingBag },
+		{ href: '/shipments', label: 'Dërgesat', icon: Truck },
+		{ href: '/stock', label: 'Stoku', icon: Boxes },
+		{ href: '/expenses', label: 'Shpenzimet', icon: Receipt },
+		{ href: '/designs', label: 'Dizajnet', icon: Palette },
+		{ href: '/stats', label: 'Statistika', icon: ChartLine },
+		{ href: '/settings', label: 'Cilësimet', icon: Settings }
 	];
 
+	// The phone bar has room for five: the daily ones, and the rest behind "more".
+	const MOBILE = ['/', '/orders', '/shipments', '/stock'];
+	const mobileNav = [
+		...nav.filter((n) => MOBILE.includes(n.href)),
+		{ href: '/more', label: 'Më shumë', icon: Ellipsis }
+	];
+	const underMore = nav.filter((n) => !MOBILE.includes(n.href)).map((n) => n.href);
+
 	function active(href: string) {
-		const path = page.url.pathname.replace(/\/$/, '');
-		const target = href.replace(/\/$/, '');
-		if (target === base) return path === base || path === '';
-		return path.startsWith(target);
+		const path = page.url.pathname;
+		if (href === '/') return path === '/';
+		if (href === '/more') return path === '/more' || underMore.some((h) => path.startsWith(h));
+		return path.startsWith(href);
 	}
 
 </script>
@@ -85,7 +100,7 @@
 		</main>
 
 		<nav class="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white lg:hidden">
-			{#each nav as item (item.href)}
+			{#each mobileNav as item (item.href)}
 				<a href={item.href} class="flex flex-col items-center gap-1 py-2 text-[11px] font-medium {active(item.href) ? 'text-slate-900' : 'text-slate-500'}">
 					<item.icon class="size-5" />
 					{item.label}

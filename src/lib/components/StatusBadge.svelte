@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { STATUS_LABELS, STATUS_STYLES } from '$lib/constants';
-	let { status }: { status: string } = $props();
+	import { STATUS_STYLES, statusLabel } from '$lib/constants';
+	let { status, delivery = 'post' }: { status: string; delivery?: string } = $props();
 </script>
 
 <span
-	class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset {STATUS_STYLES[
+	class="inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset {STATUS_STYLES[
 		status
 	] ?? 'bg-slate-100 text-slate-700 ring-slate-500/20'}"
 >
-	{STATUS_LABELS[status] ?? status}
+	{statusLabel(status, delivery)}
 </span>

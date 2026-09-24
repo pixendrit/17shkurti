@@ -8,11 +8,15 @@ import type { RequestHandler } from './$types';
  * database lived in the browser.
  */
 const ops = {
-	createOrder: m.createOrder,
 	setOrderStatus: m.setOrderStatus,
 	setPaymentStatus: m.setPaymentStatus,
+	editOrder: m.editOrder,
 	markAsMade: m.markAsMade,
 	deleteOrder: m.deleteOrder,
+	shipOrders: m.shipOrders,
+	deliverOrders: m.deliverOrders,
+	settleOrders: m.settleOrders,
+	setCustomPrintReady: m.setCustomPrintReady,
 	changeStock: m.changeStock,
 	addBlank: m.addBlank,
 	setDtfStock: m.setDtfStock,
@@ -20,7 +24,14 @@ const ops = {
 	receiveDtf: m.receiveDtf,
 	createDesign: m.createDesign,
 	renameDesign: m.renameDesign,
-	toggleArchive: m.toggleArchive
+	toggleArchive: m.toggleArchive,
+	setShirtsPerSheet: m.setShirtsPerSheet,
+	saveCostSettings: m.saveCostSettings,
+	addExpense: m.addExpense,
+	deleteExpense: m.deleteExpense,
+	buyBlanks: m.buyBlanks,
+	buyDtf: m.buyDtf,
+	clearDemoData: m.clearDemoData
 } as const;
 
 export const POST: RequestHandler = async ({ request, locals }) => {

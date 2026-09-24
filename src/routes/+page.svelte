@@ -2,15 +2,19 @@
 	import StatTile from '$lib/components/StatTile.svelte';
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import { money, plural } from '$lib/constants';
-	import { base } from '$app/paths';
 	import Plus from '@lucide/svelte/icons/plus';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
 	import TriangleAlert from '@lucide/svelte/icons/triangle-alert';
-	import Truck from '@lucide/svelte/icons/truck';
+	import PackageCheck from '@lucide/svelte/icons/package-check';
 	import ShoppingCart from '@lucide/svelte/icons/shopping-cart';
 	import Printer from '@lucide/svelte/icons/printer';
+	import Brush from '@lucide/svelte/icons/brush';
+	import Truck from '@lucide/svelte/icons/truck';
+	import Wallet from '@lucide/svelte/icons/wallet';
+	import Gift from '@lucide/svelte/icons/gift';
 
 	let { data } = $props();
+	type Card = (typeof data.canMake)[number];
 </script>
 
 <svelte:head><title>Paneli — Hijeshi</title></svelte:head>
@@ -22,88 +26,106 @@
 			{plural(data.openCount, 'porosi e hapur', 'porosi të hapura')}{#if data.newCount > 0}, {plural(data.newCount, 'e re', 'të reja')}{/if}
 		</p>
 	</div>
-	<a href="{base}/orders/new" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+	<a href="/orders/new" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
 		<Plus class="size-4" /> Porosi e re
 	</a>
 </div>
 
-<div class="mb-5 grid grid-cols-3 gap-3">
+<div class="mb-4 grid grid-cols-3 gap-3">
 	<StatTile label="Të ardhurat (30 ditë)" value={money(data.revenue30)} />
-	<StatTile label="Fitimi (30 ditë)" value={money(data.profit30)} tone="good" />
+	<StatTile label="Fitimi neto (30 ditë)" value={money(data.net30)} tone="good" />
 	<StatTile label="Për t'u arkëtuar" value={money(data.outstanding)} tone={data.outstanding > 0 ? 'warn' : 'neutral'} />
 </div>
 
-{#if data.toBuyCount > 0 || data.toPrint.length > 0}
-	<div class="mb-5 grid gap-3 sm:grid-cols-2">
-		{#if data.toBuyCount > 0}
-			<a href="{base}/stock" class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 hover:border-amber-300">
-				<ShoppingCart class="size-5 shrink-0 text-amber-700" />
-				<div>
-					<p class="text-sm font-semibold text-amber-900">Bli {data.toBuyCount} veshje pa print</p>
-					<p class="text-xs text-amber-800">Duhen për porositë e hapura</p>
-				</div>
-			</a>
-		{/if}
-		{#if data.toPrint.length > 0}
-			<a href="{base}/stock" class="flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 p-4 hover:border-purple-300">
-				<Printer class="size-5 shrink-0 text-purple-700" />
-				<div>
-					<p class="text-sm font-semibold text-purple-900">Printo {plural(data.toPrint.length, 'dizajn', 'dizajne')}</p>
-					<p class="truncate text-xs text-purple-800">{data.toPrint.map((t) => t.designName).join(', ')}</p>
-				</div>
-			</a>
-		{/if}
-	</div>
-{/if}
+<!-- Things that need doing, each linking to where they get done. -->
+<div class="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+	{#if data.shipments.pickup}
+		<a href="/shipments" class="flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 p-3 hover:border-purple-300">
+			<PackageCheck class="size-5 shrink-0 text-purple-700" />
+			<p class="text-sm font-semibold text-purple-900">{plural(data.shipments.pickup, 'pako pret', 'pako presin')} postierin</p>
+		</a>
+	{/if}
+	{#if data.shipments.courier}
+		<a href="/shipments" class="flex items-center gap-3 rounded-xl border border-cyan-200 bg-cyan-50 p-3 hover:border-cyan-300">
+			<Truck class="size-5 shrink-0 text-cyan-700" />
+			<p class="text-sm font-semibold text-cyan-900">{plural(data.shipments.courier, 'pako', 'pako')} te postieri</p>
+		</a>
+	{/if}
+	{#if data.shipments.unpaid > 0}
+		<a href="/shipments" class="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 hover:border-emerald-300">
+			<Wallet class="size-5 shrink-0 text-emerald-700" />
+			<p class="text-sm font-semibold text-emerald-900">{money(data.shipments.unpaid)} të dorëzuara, pa u paguar</p>
+		</a>
+	{/if}
+	{#if data.toBuyCount > 0}
+		<a href="/stock" class="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 hover:border-amber-300">
+			<ShoppingCart class="size-5 shrink-0 text-amber-700" />
+			<p class="text-sm font-semibold text-amber-900">Bli {data.toBuyCount} veshje pa print</p>
+		</a>
+	{/if}
+	{#if data.toPrint.length > 0}
+		<a href="/stock" class="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 p-3 hover:border-orange-300">
+			<Printer class="size-5 shrink-0 text-orange-700" />
+			<div class="min-w-0">
+				<p class="text-sm font-semibold text-orange-900">Printo {plural(data.toPrint.length, 'dizajn', 'dizajne')}</p>
+				<p class="truncate text-xs text-orange-800">{data.toPrint.map((t) => `${t.short}× ${t.designName}`).join(', ')}</p>
+			</div>
+		</a>
+	{/if}
+	{#if data.customPending > 0}
+		<a href="/stock" class="flex items-center gap-3 rounded-xl border border-violet-200 bg-violet-50 p-3 hover:border-violet-300">
+			<Brush class="size-5 shrink-0 text-violet-700" />
+			<p class="text-sm font-semibold text-violet-900">{plural(data.customPending, 'print i personalizuar', 'printime të personalizuara')} për të printuar</p>
+		</a>
+	{/if}
+</div>
 
-<div class="grid gap-4 lg:grid-cols-3">
-	{#snippet orderList(orders: any[], empty: string)}
-		{#if orders.length === 0}
-			<p class="py-6 text-center text-sm text-slate-500">{empty}</p>
-		{:else}
-			<ul class="divide-y divide-slate-100">
-				{#each orders as o (o.id)}
-					<li>
-						<a href="{base}/orders/{o.id}" class="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-slate-50">
-							<div class="min-w-0">
-								<p class="truncate text-sm font-medium text-slate-900">{o.customerName}</p>
-								<p class="truncate text-xs text-slate-500">{o.code} · {plural(o.units, 'artikull', 'artikuj')}</p>
-							</div>
-							<div class="shrink-0 text-right">
-								<p class="tabular text-sm font-medium">{money(o.total)}</p>
-								<StatusBadge status={o.status} />
-							</div>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-	{/snippet}
+{#snippet orderList(orders: Card[], empty: string)}
+	{#if orders.length === 0}
+		<p class="py-6 text-center text-sm text-slate-500">{empty}</p>
+	{:else}
+		<ul class="divide-y divide-slate-100">
+			{#each orders.slice(0, 8) as o (o.id)}
+				<li>
+					<a href="/orders/{o.id}" class="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-slate-50">
+						<div class="min-w-0">
+							<p class="truncate text-sm font-medium text-slate-900">
+								{o.customerName}{#if o.kind === 'gift'} <Gift class="inline size-3.5 text-pink-600" />{/if}
+							</p>
+							<p class="truncate text-xs text-slate-500">{o.code} · {plural(o.units, 'copë', 'copë')}</p>
+						</div>
+						<div class="shrink-0 text-right">
+							<p class="tabular text-sm font-medium">{o.kind === 'gift' ? 'Falas' : money(o.revenue)}</p>
+							<StatusBadge status={o.status} delivery={o.deliveryMethod} />
+						</div>
+					</a>
+				</li>
+			{/each}
+			{#if orders.length > 8}<li class="px-4 py-2 text-center text-xs text-slate-500">+ {orders.length - 8} të tjera</li>{/if}
+		</ul>
+	{/if}
+{/snippet}
 
+<div class="grid gap-4 *:min-w-0 lg:grid-cols-3">
 	<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
 		<header class="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-			<CircleCheck class="size-4 text-emerald-600" />
-			<h2 class="text-sm font-semibold text-slate-900">Mund të bëhen tani</h2>
+			<CircleCheck class="size-4 text-emerald-600" /><h2 class="text-sm font-semibold text-slate-900">Mund të bëhen tani</h2>
 			<span class="ml-auto text-xs text-slate-400">{data.canMake.length}</span>
 		</header>
 		{@render orderList(data.canMake, 'Asgjë në pritje për printim.')}
 	</section>
-
 	<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
 		<header class="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-			<TriangleAlert class="size-4 text-amber-600" />
-			<h2 class="text-sm font-semibold text-slate-900">Në pritje të stokut</h2>
+			<TriangleAlert class="size-4 text-amber-600" /><h2 class="text-sm font-semibold text-slate-900">Në pritje të stokut</h2>
 			<span class="ml-auto text-xs text-slate-400">{data.blocked.length}</span>
 		</header>
 		{@render orderList(data.blocked, 'Asgjë e bllokuar.')}
 	</section>
-
 	<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
 		<header class="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
-			<Truck class="size-4 text-cyan-600" />
-			<h2 class="text-sm font-semibold text-slate-900">Gati për dërgim</h2>
-			<span class="ml-auto text-xs text-slate-400">{data.toShip.length}</span>
+			<PackageCheck class="size-4 text-purple-600" /><h2 class="text-sm font-semibold text-slate-900">Gati, të paketuara</h2>
+			<span class="ml-auto text-xs text-slate-400">{data.ready.length}</span>
 		</header>
-		{@render orderList(data.toShip, 'Ende asgjë e paketuar.')}
+		{@render orderList(data.ready, 'Ende asgjë e paketuar.')}
 	</section>
 </div>

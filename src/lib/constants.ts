@@ -5,7 +5,8 @@
  */
 export const PRODUCT_TYPES = ['Oversized 200g', 'Regular Fit'];
 export const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-export const COLORS = ['White', 'Black', 'Grey', 'Navy', 'Beige', 'Red'];
+// Only what the shop sells today; COLOR_LABELS still knows the others for old rows.
+export const COLORS = ['Black', 'White'];
 
 const PRODUCT_LABELS: Record<string, string> = {
 	'Oversized 200g': 'Oversized 200gr',
@@ -26,22 +27,33 @@ export const colorLabel = (v: string) => COLOR_LABELS[v] ?? v;
 
 export const STATUS_LABELS: Record<string, string> = {
 	new: 'E re',
-	confirmed: 'E konfirmuar',
 	in_production: 'Në prodhim',
 	ready: 'Gati',
-	shipped: 'E nisur',
+	shipped: 'Te postieri',
 	delivered: 'E dorëzuar',
+	returned: 'E kthyer',
 	cancelled: 'E anuluar'
 };
+
+/**
+ * The same status reads differently depending on how the order travels:
+ * a packed courier parcel is waiting for the courier, a packed hand delivery
+ * is simply ready to hand over.
+ */
+export function statusLabel(status: string, delivery: string): string {
+	if (delivery === 'post' && status === 'ready') return 'Pret postierin';
+	if (delivery === 'manual' && status === 'shipped') return 'Në rrugë';
+	return STATUS_LABELS[status] ?? status;
+}
 
 /** Tailwind classes per status. Kept here so badges look the same everywhere. */
 export const STATUS_STYLES: Record<string, string> = {
 	new: 'bg-blue-100 text-blue-800 ring-blue-600/20',
-	confirmed: 'bg-indigo-100 text-indigo-800 ring-indigo-600/20',
 	in_production: 'bg-amber-100 text-amber-900 ring-amber-600/20',
 	ready: 'bg-purple-100 text-purple-800 ring-purple-600/20',
 	shipped: 'bg-cyan-100 text-cyan-900 ring-cyan-600/20',
 	delivered: 'bg-emerald-100 text-emerald-800 ring-emerald-600/20',
+	returned: 'bg-rose-100 text-rose-800 ring-rose-600/20',
 	cancelled: 'bg-slate-200 text-slate-600 ring-slate-500/20'
 };
 
@@ -50,6 +62,32 @@ export const CHANNEL_LABELS: Record<string, string> = {
 	messenger: 'Messenger',
 	tiktok: 'TikTok',
 	whatsapp: 'WhatsApp',
+	direct: 'Porosi direkte',
+	other: 'Tjetër'
+};
+
+export const KIND_LABELS: Record<string, string> = {
+	sale: 'Shitje',
+	gift: 'Dhuratë / influencer'
+};
+
+export const DELIVERY_LABELS: Record<string, string> = {
+	post: 'Me postë',
+	manual: 'Dorëzim personal'
+};
+
+export const COUNTRY_LABELS: Record<string, string> = {
+	XK: 'Kosovë',
+	AL: 'Shqipëri',
+	MK: 'Maqedoni e Veriut',
+	OTHER: 'Tjetër'
+};
+
+export const EXPENSE_LABELS: Record<string, string> = {
+	blanks: 'Bluza pa print',
+	dtf: 'Fletë DTF',
+	packaging: 'Paketim',
+	marketing: 'Marketing',
 	other: 'Tjetër'
 };
 
@@ -60,7 +98,7 @@ export const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 /** Statuses that still need blanks and transfers reserved for them. */
-export const OPEN_STATUSES = ['new', 'confirmed', 'in_production', 'ready'];
+export const OPEN_STATUSES = ['new', 'in_production', 'ready'];
 
 export const CURRENCY = '€';
 

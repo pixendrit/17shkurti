@@ -119,7 +119,7 @@
 
 			{#each points as p, i (p.x)}
 				{#if i === 0 || i === points.length - 1 || points.length <= 6}
-					<text x={xs[i]} y={H - 8} text-anchor="middle" font-size="11" fill="#64748b">
+					<text x={xs[i]} y={H - 8} text-anchor={points.length > 1 && i === 0 ? 'start' : points.length > 1 && i === points.length - 1 ? 'end' : 'middle'} font-size="11" fill="#64748b">
 						{monthLabel(p.x)}
 					</text>
 				{/if}

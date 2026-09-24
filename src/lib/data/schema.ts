@@ -9,6 +9,11 @@ export const designs = sqliteTable('designs', {
 	name: text('name').notNull(),
 	notes: text('notes'),
 	archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+	/**
+	 * How many shirts' worth of this design (front + back) fit on one DTF
+	 * sheet. The DTF cost of one shirt is the sheet price divided by this.
+	 */
+	shirtsPerSheet: integer('shirts_per_sheet').notNull().default(4),
 	createdAt: integer('created_at').notNull().default(now)
 });
 
@@ -47,22 +52,38 @@ export const dtfStock = sqliteTable(
 	(t) => [uniqueIndex('dtf_design_idx').on(t.designId)]
 );
 
+/**
+ * new → in_production → ready (packed; for courier orders: waiting for the
+ * courier to pick it up) → shipped (handed to the courier) → delivered.
+ * returned: the courier brought it back. Hand deliveries skip `shipped`.
+ */
 export const ORDER_STATUSES = [
 	'new',
-	'confirmed',
 	'in_production',
 	'ready',
 	'shipped',
 	'delivered',
+	'returned',
 	'cancelled'
 ] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const CHANNELS = ['instagram', 'messenger', 'tiktok', 'whatsapp', 'other'] as const;
+export const CHANNELS = ['instagram', 'messenger', 'tiktok', 'whatsapp', 'direct', 'other'] as const;
 export type Channel = (typeof CHANNELS)[number];
 
 export const PAYMENT_STATUSES = ['unpaid', 'paid'] as const;
 export const PAYMENT_METHODS = ['cash_on_delivery', 'bank_transfer', 'cash'] as const;
+
+/** sale: a normal order. gift: sent free to an influencer — a marketing cost. */
+export const ORDER_KINDS = ['sale', 'gift'] as const;
+export type OrderKind = (typeof ORDER_KINDS)[number];
+
+/** post: through the courier. manual: handed over in person. */
+export const DELIVERY_METHODS = ['post', 'manual'] as const;
+export type DeliveryMethod = (typeof DELIVERY_METHODS)[number];
+
+export const COUNTRIES = ['XK', 'AL', 'MK', 'OTHER'] as const;
+export type Country = (typeof COUNTRIES)[number];
 
 export const orders = sqliteTable(
 	'orders',
@@ -78,9 +99,24 @@ export const orders = sqliteTable(
 		status: text('status').notNull().default('new'),
 		paymentStatus: text('payment_status').notNull().default('unpaid'),
 		paymentMethod: text('payment_method').notNull().default('cash_on_delivery'),
+		/** What the customer pays for shipping — usually 0, shipping is free. */
 		shippingFee: real('shipping_fee').notNull().default(0),
 		discount: real('discount').notNull().default(0),
 		notes: text('notes'),
+		kind: text('kind').notNull().default('sale'),
+		deliveryMethod: text('delivery_method').notNull().default('post'),
+		country: text('country').notNull().default('XK'),
+		/** What the shop pays the courier for this parcel. */
+		shippingCost: real('shipping_cost').notNull().default(0),
+		packagingCost: real('packaging_cost').notNull().default(0),
+		/** The courier's own reference for the parcel. */
+		trackingRef: text('tracking_ref'),
+		/** Handed to the courier (or, for hand deliveries, handed over). */
+		shippedAt: integer('shipped_at'),
+		/** When the money arrived — from the courier's settlement, or in hand. */
+		paidAt: integer('paid_at'),
+		/** Sample data, removable in one go from Settings. */
+		isDemo: integer('is_demo', { mode: 'boolean' }).notNull().default(false),
 		/** Set once the blanks and transfers for this order have been deducted from stock. */
 		stockDeductedAt: integer('stock_deducted_at'),
 		createdAt: integer('created_at').notNull().default(now),
@@ -90,7 +126,8 @@ export const orders = sqliteTable(
 	(t) => [
 		uniqueIndex('orders_code_idx').on(t.code),
 		index('orders_status_idx').on(t.status),
-		index('orders_phone_idx').on(t.phone)
+		index('orders_phone_idx').on(t.phone),
+		index('orders_tracking_idx').on(t.trackingRef)
 	]
 );
 
@@ -107,8 +144,18 @@ export const orderItems = sqliteTable(
 		designId: integer('design_id').references(() => designs.id, { onDelete: 'set null' }),
 		quantity: integer('quantity').notNull().default(1),
 		unitPrice: real('unit_price').notNull().default(0),
-		/** Snapshot of blank + transfer cost at the time of sale, so history stays accurate. */
-		unitCost: real('unit_cost').notNull().default(0)
+		/**
+		 * Per-shirt costs snapshotted when the order is created, so changing a
+		 * price in Settings later never rewrites past profit. unitCost is their sum.
+		 */
+		unitCost: real('unit_cost').notNull().default(0),
+		blankCost: real('blank_cost').notNull().default(0),
+		dtfCost: real('dtf_cost').notNull().default(0),
+		laborCost: real('labor_cost').notNull().default(0),
+		/** A personalised print: needs its own DTF and front/back mockups. */
+		isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(false),
+		/** The personalised DTF print has arrived from the printer. */
+		customPrintReady: integer('custom_print_ready', { mode: 'boolean' }).notNull().default(false)
 	},
 	(t) => [index('order_items_order_idx').on(t.orderId)]
 );
@@ -129,11 +176,48 @@ export const settings = sqliteTable('settings', {
 	value: text('value').notNull()
 });
 
+export const EXPENSE_CATEGORIES = ['blanks', 'dtf', 'packaging', 'marketing', 'other'] as const;
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+/** Money that went out: blank shirts, DTF sheets, packaging, ads… */
+export const expenses = sqliteTable(
+	'expenses',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		date: integer('date').notNull(),
+		category: text('category').notNull(),
+		description: text('description'),
+		/** Pieces or sheets bought, when that makes sense. */
+		quantity: real('quantity'),
+		/** Total paid, in euro. */
+		amount: real('amount').notNull(),
+		isDemo: integer('is_demo', { mode: 'boolean' }).notNull().default(false),
+		createdAt: integer('created_at').notNull().default(now)
+	},
+	(t) => [index('expenses_date_idx').on(t.date)]
+);
+
+/** Front/back mockups of a personalised print, attached to an order item. */
+export const orderItemImages = sqliteTable(
+	'order_item_images',
+	{
+		itemId: integer('item_id')
+			.notNull()
+			.references(() => orderItems.id, { onDelete: 'cascade' }),
+		side: text('side').notNull(),
+		mime: text('mime').notNull(),
+		data: text('data').notNull(),
+		updatedAt: integer('updated_at').notNull().default(now)
+	},
+	(t) => [primaryKey({ columns: [t.itemId, t.side] })]
+);
+
 export type Design = typeof designs.$inferSelect;
 export type Blank = typeof blanks.$inferSelect;
 export type DtfStock = typeof dtfStock.$inferSelect;
 export type Order = typeof orders.$inferSelect;
 export type OrderItem = typeof orderItems.$inferSelect;
+export type Expense = typeof expenses.$inferSelect;
 
 export const designsRelations = relations(designs, ({ one, many }) => ({
 	dtf: one(dtfStock, { fields: [designs.id], references: [dtfStock.designId] }),

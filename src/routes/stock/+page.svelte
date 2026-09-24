@@ -45,7 +45,7 @@
 {/if}
 
 <!-- What the open order book demands that you don't have -->
-{#if data.toBuy.length > 0 || data.toPrint.length > 0}
+{#if data.toBuy.length > 0 || data.toPrint.length > 0 || data.custom.length > 0}
 	<div class="mb-5 grid gap-3 sm:grid-cols-2">
 		{#if data.toBuy.length > 0}
 			<section class="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -73,6 +73,21 @@
 						<li class="flex justify-between gap-2">
 							<span>{t.designName}</span>
 							<span class="tabular font-semibold">{t.short}</span>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+		{#if data.custom.length > 0}
+			<section class="rounded-xl border border-violet-200 bg-violet-50 p-4">
+				<h2 class="mb-2 flex items-center gap-1.5 text-sm font-semibold text-violet-900">
+					<Printer class="size-4" /> Printime të personalizuara
+				</h2>
+				<ul class="space-y-1 text-sm text-violet-900">
+					{#each data.custom as c (c.itemId)}
+						<li class="flex justify-between gap-2">
+							<a href="/orders/{c.orderId}" class="underline decoration-violet-300 underline-offset-2">{c.code}</a>
+							<span class="tabular font-semibold">{c.quantity}</span>
 						</li>
 					{/each}
 				</ul>

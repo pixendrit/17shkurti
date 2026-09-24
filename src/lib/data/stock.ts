@@ -45,7 +45,10 @@ export async function orderReadiness(db: DB, orderId: number) {
 		blankLeft.set(bKey, haveBlank - usedBlank);
 
 		let needTransfers = 0;
-		if (item.designId) {
+		if (item.isCustom) {
+			// A personalised print is made for this order alone, not taken from stock.
+			needTransfers = item.customPrintReady ? 0 : item.quantity;
+		} else if (item.designId) {
 			const haveDtf = dtfLeft.get(item.designId) ?? 0;
 			const usedDtf = Math.min(haveDtf, item.quantity);
 			dtfLeft.set(item.designId, haveDtf - usedDtf);
@@ -72,7 +75,7 @@ export async function orderReadiness(db: DB, orderId: number) {
 export async function shoppingList(db: DB) {
 	const open = await db.select().from(orders).where(inArray(orders.status, OPEN_STATUSES));
 	const ids = open.filter((o) => !o.stockDeductedAt).map((o) => o.id);
-	if (ids.length === 0) return { blanks: [], transfers: [] };
+	if (ids.length === 0) return { blanks: [], transfers: [], custom: [] };
 
 	const items = await db.select().from(orderItems).where(inArray(orderItems.orderId, ids));
 
@@ -81,7 +84,7 @@ export async function shoppingList(db: DB) {
 	for (const item of items) {
 		const key = variantKey(item.productType, item.color, item.size);
 		blankDemand.set(key, (blankDemand.get(key) ?? 0) + item.quantity);
-		if (item.designId) dtfDemand.set(item.designId, (dtfDemand.get(item.designId) ?? 0) + item.quantity);
+		if (!item.isCustom && item.designId) dtfDemand.set(item.designId, (dtfDemand.get(item.designId) ?? 0) + item.quantity);
 	}
 
 	const allBlanks = await db.select().from(blanks);
@@ -108,7 +111,13 @@ export async function shoppingList(db: DB) {
 		}
 	}
 
-	return { blanks: blankNeeds, transfers: transferNeeds };
+	// Personalised prints still to be printed, one line per order item.
+	const code = new Map(open.map((o) => [o.id, o.code]));
+	const custom = items
+		.filter((i) => i.isCustom && !i.customPrintReady)
+		.map((i) => ({ itemId: i.id, orderId: i.orderId, code: code.get(i.orderId) ?? '', quantity: i.quantity }));
+
+	return { blanks: blankNeeds, transfers: transferNeeds, custom };
 }
 
 /** Deduct what an order consumes, once, logging every move. */
@@ -147,7 +156,8 @@ export async function deductStockForOrder(db: DB, orderId: number) {
 			});
 		}
 
-		if (item.designId) {
+		// Personalised prints never came out of design stock.
+		if (item.designId && !item.isCustom) {
 			const [dtf] = await db
 				.select()
 				.from(dtfStock)

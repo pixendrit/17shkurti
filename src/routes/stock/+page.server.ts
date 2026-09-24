@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ locals: { db } }) => {
 		dtf: dtf.map((d) => ({ ...d, designName: designName.get(d.designId) ?? 'I panjohur' })),
 		designs: allDesigns.filter((d) => !d.archived),
 		toBuy: list.blanks,
-		toPrint: list.transfers.map((t) => ({ ...t, designName: designName.get(t.designId) ?? 'I panjohur' }))
+		toPrint: list.transfers.map((t) => ({ ...t, designName: designName.get(t.designId) ?? 'I panjohur' })),
+		custom: list.custom
 	};
 };
