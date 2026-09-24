@@ -3,7 +3,7 @@
  *   - optional courier export rows (real parcels) → real orders
  *   - demo orders and expenses → marked isDemo, removable from Settings
  *
- *   node scripts/demo-data.mjs --designs '{"UÇK":1,"Shqiponja":2}' \
+ *   node scripts/demo-data.mjs --designs '{"Black":[1,2],"White":[3,4]}' \
  *     [--courier rows.json] [--mockups dir] [--total 100] --out payload.json
  *
  * The courier file holds real customers, so it is read from wherever you keep
@@ -15,8 +15,10 @@ import { join } from 'node:path';
 const args = Object.fromEntries(
 	process.argv.slice(2).reduce((acc, a, i, all) => (a.startsWith('--') ? [...acc, [a.slice(2), all[i + 1]]] : acc), [])
 );
-const designs = JSON.parse(args.designs ?? '{}');
-const designIds = Object.values(designs);
+// Design ids by shirt colour: the shop keeps a black and a white version of
+// each design, since the print differs between them.
+const designsByColor = JSON.parse(args.designs ?? '{}');
+const designIds = Object.values(designsByColor).flat();
 const TOTAL = Number(args.total ?? 100);
 
 // Seeded PRNG, so the same command always produces the same data.
@@ -38,16 +40,11 @@ const DAY = 86400;
 const ts = (y, m, d, h = 12) => Math.floor(Date.UTC(y, m - 1, d, h) / 1000);
 const size = () => weighted([['S', 10], ['M', 30], ['L', 30], ['XL', 20], ['XXL', 10]]);
 const color = () => weighted([['Black', 65], ['White', 35]]);
-const design = () => pick(designIds);
-const item = (qty = 1, price = 25, extra = {}) => ({
-	productType: 'Oversized 200g',
-	color: color(),
-	size: size(),
-	designId: design(),
-	quantity: qty,
-	unitPrice: price,
-	...extra
-});
+const designFor = (c) => pick(designsByColor[c] ?? designIds);
+const item = (qty = 1, price = 25, extra = {}) => {
+	const c = extra.color ?? color();
+	return { productType: 'Oversized 200g', size: size(), designId: designFor(c), quantity: qty, unitPrice: price, ...extra, color: c };
+};
 
 const orders = [];
 
@@ -146,7 +143,7 @@ const add = (input, extra, images) => demo.push({ input: { shippingFee: 0, disco
 
 // The bulk client: 13 shirts at 20 € each, handed over in person.
 add(
-	{ kind: 'sale', ...person('XK'), customerName: 'Klubi Sportiv Dardanët', channel: 'direct', deliveryMethod: 'manual', paymentStatus: 'paid', paymentMethod: 'cash', shippingCost: 0, notes: 'Porosi me shumicë për ekipin.', items: [{ ...item(8, 20), color: 'Black' }, { ...item(5, 20), color: 'White' }] },
+	{ kind: 'sale', ...person('XK'), customerName: 'Klubi Sportiv Dardanët', channel: 'direct', deliveryMethod: 'manual', paymentStatus: 'paid', paymentMethod: 'cash', shippingCost: 0, notes: 'Porosi me shumicë për ekipin.', items: [item(8, 20, { color: 'Black' }), item(5, 20, { color: 'White' })] },
 	history(ts(2026, 8, 12), 'manual')
 );
 add(
@@ -182,7 +179,7 @@ for (const [slug, d, status] of customs) {
 	const pics = mock(slug);
 	if (!pics) continue;
 	add(
-		{ kind: 'sale', ...person('XK'), channel: pick(['instagram', 'direct']), deliveryMethod: 'post', paymentStatus: status === 'delivered' ? 'paid' : 'unpaid', paymentMethod: 'cash_on_delivery', notes: 'Emër dhe numër sipas kërkesës.', items: [{ ...item(1, 30), designId: null, isCustom: true, color: slug === 'elira' || slug === 'dea' ? 'White' : 'Black' }] },
+		{ kind: 'sale', ...person('XK'), channel: pick(['instagram', 'direct']), deliveryMethod: 'post', paymentStatus: status === 'delivered' ? 'paid' : 'unpaid', paymentMethod: 'cash_on_delivery', notes: 'Emër dhe numër sipas kërkesës.', items: [item(1, 30, { designId: null, isCustom: true, color: slug === 'elira' || slug === 'dea' ? 'White' : 'Black' })] },
 		history(d, 'post', { status }),
 		{ 0: pics }
 	);
