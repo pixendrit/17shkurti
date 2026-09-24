@@ -1,7 +1,7 @@
 <script lang="ts">
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import Empty from '$lib/components/Empty.svelte';
-	import { money, formatDate, CHANNEL_LABELS } from '$lib/constants';
+	import { money, formatDate, plural, CHANNEL_LABELS } from '$lib/constants';
 	import Plus from '@lucide/svelte/icons/plus';
 	import Search from '@lucide/svelte/icons/search';
 	import { base } from '$app/paths';
@@ -11,24 +11,24 @@
 	let { data } = $props();
 
 	const tabs = [
-		{ key: 'open', label: 'Open' },
-		{ key: 'new', label: 'New' },
-		{ key: 'in_production', label: 'Production' },
-		{ key: 'shipped', label: 'Shipped' },
-		{ key: 'delivered', label: 'Delivered' },
-		{ key: 'all', label: 'All' }
+		{ key: 'open', label: 'Të hapura' },
+		{ key: 'new', label: 'Të reja' },
+		{ key: 'in_production', label: 'Në prodhim' },
+		{ key: 'shipped', label: 'Të nisura' },
+		{ key: 'delivered', label: 'Të dorëzuara' },
+		{ key: 'all', label: 'Të gjitha' }
 	];
 </script>
 
-<svelte:head><title>Orders — Hijeshi</title></svelte:head>
+<svelte:head><title>Porositë — Hijeshi</title></svelte:head>
 
 <div class="mb-5 flex items-center justify-between gap-3">
-	<h1 class="text-xl font-semibold text-slate-900">Orders</h1>
+	<h1 class="text-xl font-semibold text-slate-900">Porositë</h1>
 	<a
 		href="{base}/orders/new"
 		class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
 	>
-		<Plus class="size-4" /> New order
+		<Plus class="size-4" /> Porosi e re
 	</a>
 </div>
 
@@ -39,12 +39,12 @@
 		<input
 			name="q"
 			value={data.q}
-			placeholder="Search name, phone or code…"
+			placeholder="Kërko emër, telefon ose kod…"
 			class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-slate-900 focus:outline-none"
 		/>
 	</div>
 	<button class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium hover:bg-slate-50">
-		Search
+		Kërko
 	</button>
 </form>
 
@@ -62,7 +62,7 @@
 
 {#if data.orders.length === 0}
 	<div class="rounded-xl border border-slate-200 bg-white">
-		<Empty message="No orders here" hint="Tap “New order” when the next DM comes in." />
+		<Empty message="Nuk ka porosi këtu" hint="Shtypni “Porosi e re” kur të vijë mesazhi i radhës." />
 	</div>
 {:else}
 	<div class="space-y-2">
@@ -77,7 +77,7 @@
 							<span class="font-mono text-xs text-slate-400">{o.code}</span>
 							<StatusBadge status={o.status} />
 							{#if o.paymentStatus === 'paid'}
-								<span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">Paid</span>
+								<span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[11px] font-medium text-emerald-700">E paguar</span>
 							{/if}
 						</div>
 						<p class="mt-1 truncate font-medium text-slate-900">{o.customerName}</p>
@@ -85,8 +85,8 @@
 							{o.phone} · {CHANNEL_LABELS[o.channel] ?? o.channel}
 						</p>
 						<p class="mt-1 truncate text-xs text-slate-500">
-							{o.units} item{o.units === 1 ? '' : 's'} ·
-							{o.items.map((i) => `${i.quantity}× ${i.designName ?? 'Plain'} ${i.size}`).join(', ')}
+							{plural(o.units, 'artikull', 'artikuj')} ·
+							{o.items.map((i) => `${i.quantity}× ${i.designName ?? 'Pa print'} ${i.size}`).join(', ')}
 						</p>
 					</div>
 					<div class="shrink-0 text-right">
@@ -95,11 +95,11 @@
 						{#if !['delivered', 'cancelled'].includes(o.status)}
 							{#if o.canMake}
 								<span class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-emerald-600">
-									<CircleCheck class="size-3.5" /> Can make
+									<CircleCheck class="size-3.5" /> Mund të bëhet
 								</span>
 							{:else}
 								<span class="mt-1 inline-flex items-center gap-1 text-[11px] font-medium text-amber-600">
-									<TriangleAlert class="size-3.5" /> Missing stock
+									<TriangleAlert class="size-3.5" /> Mungon stoku
 								</span>
 							{/if}
 						{/if}

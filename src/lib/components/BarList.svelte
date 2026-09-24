@@ -16,7 +16,7 @@
 </script>
 
 {#if rows.length === 0}
-	<p class="py-6 text-center text-sm text-slate-500">Nothing yet.</p>
+	<p class="py-6 text-center text-sm text-slate-500">Ende asgjë.</p>
 {:else}
 	<ul class="space-y-2.5">
 		{#each rows as r (r.label)}

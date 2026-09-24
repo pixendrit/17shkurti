@@ -115,7 +115,7 @@ export async function setPaymentStatus(db: DB, orderId: number, paymentStatus: s
 /** Take the blanks and transfers out of stock. Refuses when short. */
 export async function markAsMade(db: DB, orderId: number): Promise<string | null> {
 	if (!(await orderReadiness(db, orderId)).ready) {
-		return 'Not enough stock to make this order yet.';
+		return 'Ende s\'ka stok të mjaftueshëm për këtë porosi.';
 	}
 	await run(db, async (d) => {
 		await deductStockForOrder(d, orderId);
@@ -139,7 +139,7 @@ export async function changeStock(db: DB,
 	kind: 'blank' | 'dtf',
 	refId: number,
 	delta: number,
-	reason = 'Manual adjustment'
+	reason = 'Rregullim manual'
 ) {
 	await run(db, (db) => adjustStock(db, kind, refId, delta, reason));
 }
@@ -155,7 +155,7 @@ export async function addBlank(db: DB, input: {
 		(b) =>
 			b.productType === input.productType && b.color === input.color && b.size === input.size
 	);
-	if (existing) return 'That blank already exists.';
+	if (existing) return 'Kjo veshje pa print ekziston tashmë.';
 	await run(db, (d) => d.insert(blanks).values(input));
 	return null;
 }
@@ -191,7 +191,7 @@ export async function setDtfStock(db: DB, input: {
 					kind: 'dtf',
 					refId: existing.id,
 					delta,
-					reason: 'Stock set manually'
+					reason: 'Stoku u vendos manualisht'
 				});
 			}
 		});
@@ -213,13 +213,13 @@ export async function receiveDtf(db: DB, id: number) {
 	const [row] = await db.select().from(dtfStock).where(eq(dtfStock.id, id)).limit(1);
 	if (!row || row.onOrder <= 0) return;
 	await run(db, async (d) => {
-		await adjustStock(d, 'dtf', id, row.onOrder, 'Print order received');
+		await adjustStock(d, 'dtf', id, row.onOrder, 'Printimet u morën nga printeri');
 		await d.update(dtfStock).set({ onOrder: 0 }).where(eq(dtfStock.id, id));
 	});
 }
 
 export async function createDesign(db: DB, name: string, notes: string): Promise<string | null> {
-	if (!name.trim()) return 'Give the design a name.';
+	if (!name.trim()) return 'Jepini dizajnit një emër.';
 	await run(db, async (db) => {
 		const [design] = await db
 			.insert(designs)

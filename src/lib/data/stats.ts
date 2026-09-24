@@ -62,7 +62,7 @@ export async function financials(db: DB, days: Period = 30) {
 	const byDesign = new Map<string, { units: number; revenue: number }>();
 	for (const r of rows) {
 		for (const i of itemsByOrder.get(r.order.id) ?? []) {
-			const name = i.designId ? (designName.get(i.designId) ?? 'Unknown') : 'Plain';
+			const name = i.designId ? (designName.get(i.designId) ?? 'I panjohur') : 'Pa print';
 			const cur = byDesign.get(name) ?? { units: 0, revenue: 0 };
 			cur.units += i.quantity;
 			cur.revenue += i.quantity * i.unitPrice;

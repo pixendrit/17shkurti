@@ -30,6 +30,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		return json({ result: (await fn(locals.db, ...body.args)) ?? null });
 	} catch (e) {
-		return json({ error: e instanceof Error ? e.message : 'Something went wrong' }, { status: 500 });
+		return json({ error: e instanceof Error ? e.message : 'Diçka shkoi keq' }, { status: 500 });
 	}
 };

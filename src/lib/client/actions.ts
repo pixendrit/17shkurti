@@ -18,10 +18,10 @@ async function call<K extends keyof Ops>(op: K, ...args: Args<K>): Promise<Ret<K
 	});
 	if (res.status === 401) {
 		await goto('/login');
-		throw new Error('Locked');
+		throw new Error('E kyçur');
 	}
 	const body = (await res.json().catch(() => ({}))) as { result?: Ret<K>; error?: string };
-	if (!res.ok || body.error) throw new Error(body.error ?? 'Could not save. Check your connection.');
+	if (!res.ok || body.error) throw new Error(body.error ?? 'Nuk u ruajt. Kontrolloni lidhjen me internetin.');
 	await invalidateAll();
 	return body.result as Ret<K>;
 }

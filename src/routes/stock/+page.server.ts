@@ -15,9 +15,9 @@ export const load: PageServerLoad = async ({ locals: { db } }) => {
 			.select()
 			.from(blanks)
 			.orderBy(asc(blanks.productType), asc(blanks.color), asc(blanks.size)),
-		dtf: dtf.map((d) => ({ ...d, designName: designName.get(d.designId) ?? 'Unknown' })),
+		dtf: dtf.map((d) => ({ ...d, designName: designName.get(d.designId) ?? 'I panjohur' })),
 		designs: allDesigns.filter((d) => !d.archived),
 		toBuy: list.blanks,
-		toPrint: list.transfers.map((t) => ({ ...t, designName: designName.get(t.designId) ?? 'Unknown' }))
+		toPrint: list.transfers.map((t) => ({ ...t, designName: designName.get(t.designId) ?? 'I panjohur' }))
 	};
 };

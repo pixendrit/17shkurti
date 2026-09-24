@@ -15,7 +15,7 @@
 	}
 </script>
 
-<svelte:head><title>Hijeshi — Lock</title></svelte:head>
+<svelte:head><title>Hijeshi — Hyrja</title></svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-slate-900 px-4">
 	<div class="w-full max-w-xs text-center">
@@ -25,7 +25,7 @@
 			</div>
 			<div>
 				<h1 class="text-lg font-semibold text-white">Hijeshi Shqiptare</h1>
-				<p class="text-sm text-slate-400">Enter your code</p>
+				<p class="text-sm text-slate-400">Shkruani kodin</p>
 			</div>
 		</div>
 
@@ -43,7 +43,7 @@
 				inputmode="numeric"
 				autocomplete="one-time-code"
 				maxlength="4"
-				aria-label="4-digit code"
+				aria-label="Kodi me 4 shifra"
 				oninput={onInput}
 				value={pin}
 				class="w-full rounded-xl border border-white/10 bg-white/5 py-4 text-center text-3xl tracking-[0.6em] text-white placeholder:text-slate-600 focus:border-white/30 focus:outline-none"
@@ -51,7 +51,7 @@
 			/>
 			{#if form?.error}<p class="mt-3 text-sm text-red-400">{form.error}</p>{/if}
 			<button class="mt-4 w-full rounded-xl bg-white py-3 text-sm font-semibold text-slate-900 hover:bg-slate-200">
-				Unlock
+				Hyr
 			</button>
 		</form>
 	</div>

@@ -20,6 +20,6 @@
 
 <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
 	<p class="text-xs font-medium text-slate-500">{label}</p>
-	<p class="tabular mt-1 text-2xl font-semibold {toneClass[tone]}">{value}</p>
+	<p class="tabular mt-1 whitespace-nowrap text-lg font-semibold sm:text-2xl {toneClass[tone]}">{value}</p>
 	{#if sub}<p class="mt-0.5 text-xs text-slate-500">{sub}</p>{/if}
 </div>

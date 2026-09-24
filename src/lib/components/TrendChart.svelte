@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { MONTHS } from '$lib/constants';
 	/**
 	 * Single-series trend over time. One series means no legend box — the card
 	 * title already says what is plotted. Hover gives a crosshair + tooltip.
@@ -6,7 +7,7 @@
 	let {
 		points,
 		format = (n: number) => String(n),
-		label = 'Value'
+		label = 'Vlera'
 	}: {
 		points: { x: string; y: number }[];
 		format?: (n: number) => string;
@@ -53,12 +54,12 @@
 
 	function monthLabel(key: string) {
 		const [y, m] = key.split('-');
-		return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-GB', { month: 'short' });
+		return `${MONTHS[Number(m) - 1]} ${y.slice(2)}`;
 	}
 </script>
 
 {#if points.length === 0}
-	<p class="py-10 text-center text-sm text-slate-500">No data in this period yet.</p>
+	<p class="py-10 text-center text-sm text-slate-500">Ende s'ka të dhëna për këtë periudhë.</p>
 {:else}
 	<div class="relative">
 		<svg
@@ -66,7 +67,7 @@
 			viewBox="0 0 {W} {H}"
 			class="w-full touch-none"
 			role="img"
-			aria-label="{label} over time"
+			aria-label="{label} sipas kohës"
 			onpointermove={onMove}
 			onpointerleave={() => (hover = null)}
 		>

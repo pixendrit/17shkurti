@@ -9,7 +9,7 @@ export const load: PageServerLoad = async ({ params, locals: { db } }) => {
 	const id = Number(params.id);
 
 	const order = await getOrder(db, id);
-	if (!order) throw error(404, 'Order not found');
+	if (!order) throw error(404, 'Porosia nuk u gjet');
 
 	const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
 	const allDesigns = await db.select().from(designs);

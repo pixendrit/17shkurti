@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals: { db } }) => {
 		blocked: withReadiness.filter((o) => !o.canMake),
 		toShip: withReadiness.filter((o) => o.status === 'ready'),
 		toBuyCount: list.blanks.reduce((a, b) => a + b.short, 0),
-		toPrint: list.transfers.map((t) => ({ ...t, designName: designName.get(t.designId) ?? 'Unknown' })),
+		toPrint: list.transfers.map((t) => ({ ...t, designName: designName.get(t.designId) ?? 'I panjohur' })),
 		revenue30: stats.revenue,
 		profit30: stats.profit,
 		outstanding: stats.outstanding

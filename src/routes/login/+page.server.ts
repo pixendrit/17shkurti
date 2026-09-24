@@ -9,15 +9,15 @@ export const actions: Actions = {
 
 		const wait = await lockedFor(locals.db, ip);
 		if (wait > 0) {
-			return fail(429, { error: `Too many attempts. Try again in ${Math.ceil(wait / 60)} min.` });
+			return fail(429, { error: `Shumë përpjekje. Provoni sërish pas ${Math.ceil(wait / 60)} min.` });
 		}
 
 		const pin = String((await request.formData()).get('pin') ?? '').trim();
-		if (!/^\d{4}$/.test(pin)) return fail(400, { error: 'Enter the 4-digit code.' });
+		if (!/^\d{4}$/.test(pin)) return fail(400, { error: 'Shkruani kodin me 4 shifra.' });
 
 		if (!checkPin(pin, env.APP_PIN)) {
 			await recordFailure(locals.db, ip);
-			return fail(401, { error: 'Wrong code.' });
+			return fail(401, { error: 'Kod i gabuar.' });
 		}
 
 		await clearFailures(locals.db, ip);

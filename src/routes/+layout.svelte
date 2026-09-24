@@ -14,11 +14,11 @@
 	let { children } = $props();
 
 	const nav = [
-		{ href: `${base}/`, label: 'Dashboard', icon: LayoutDashboard },
-		{ href: `${base}/orders`, label: 'Orders', icon: ShoppingBag },
-		{ href: `${base}/stock`, label: 'Stock', icon: Boxes },
-		{ href: `${base}/designs`, label: 'Designs', icon: Palette },
-		{ href: `${base}/stats`, label: 'Stats', icon: ChartLine }
+		{ href: `${base}/`, label: 'Paneli', icon: LayoutDashboard },
+		{ href: `${base}/orders`, label: 'Porositë', icon: ShoppingBag },
+		{ href: `${base}/stock`, label: 'Stoku', icon: Boxes },
+		{ href: `${base}/designs`, label: 'Dizajnet', icon: Palette },
+		{ href: `${base}/stats`, label: 'Statistika', icon: ChartLine }
 	];
 
 	function active(href: string) {
@@ -39,7 +39,7 @@
 				<Package class="size-5 text-slate-900" />
 				<div class="leading-tight">
 					<div class="text-sm font-semibold text-slate-900">Hijeshi Shqiptare</div>
-					<div class="text-xs text-slate-500">Order desk</div>
+					<div class="text-xs text-slate-500">Menaxhimi i porosive</div>
 				</div>
 			</div>
 			<nav class="flex-1 space-y-1 px-3">
@@ -57,11 +57,11 @@
 
 			<div class="space-y-1 p-3">
 				<a href="/api/backup" download class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">
-					<Download class="size-4" /> Backup
+					<Download class="size-4" /> Kopje rezervë
 				</a>
 				<form method="POST" action="/logout">
 					<button class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-slate-500 hover:bg-slate-100">
-						<Lock class="size-4" /> Lock
+						<Lock class="size-4" /> Kyç
 					</button>
 				</form>
 			</div>
@@ -71,9 +71,9 @@
 			<Package class="size-5" />
 			<span class="text-sm font-semibold">Hijeshi Shqiptare</span>
 			<div class="ml-auto flex gap-1">
-				<a href="/api/backup" download aria-label="Backup" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Download class="size-4" /></a>
+				<a href="/api/backup" download aria-label="Kopje rezervë" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Download class="size-4" /></a>
 				<form method="POST" action="/logout">
-					<button aria-label="Lock" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Lock class="size-4" /></button>
+					<button aria-label="Kyç" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Lock class="size-4" /></button>
 				</form>
 			</div>
 		</header>

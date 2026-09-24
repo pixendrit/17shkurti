@@ -142,7 +142,7 @@ export async function deductStockForOrder(db: DB, orderId: number) {
 				kind: 'blank',
 				refId: blank.id,
 				delta: -item.quantity,
-				reason: `Used for order ${order.code}`,
+				reason: `Përdorur për porosinë ${order.code}`,
 				orderId
 			});
 		}
@@ -162,7 +162,7 @@ export async function deductStockForOrder(db: DB, orderId: number) {
 					kind: 'dtf',
 					refId: dtf.id,
 					delta: -item.quantity,
-					reason: `Used for order ${order.code}`,
+					reason: `Përdorur për porosinë ${order.code}`,
 					orderId
 				});
 			}
