@@ -279,14 +279,29 @@ export function stockView(w: World) {
 			orderCode: m.orderId ? (orderCode.get(m.orderId) ?? null) : null
 		}));
 
+	const toPrint = prints.filter((p) => p.short > 0);
 	return {
 		blanks,
 		prints,
 		custom,
 		ledger,
+		dtfOrder: dtfOrder(w, toPrint, custom.reduce((a, c) => a + c.quantity, 0)),
 		toBuy: blanks.flatMap((g) => g.sizes.filter((s) => s.short > 0).map((s) => ({ label: `${g.label} · ${s.size}`, short: s.short }))),
-		toPrint: prints.filter((p) => p.short > 0)
+		toPrint
 	};
+}
+
+/**
+ * dtfOrder : World [print shortfall] Number -> { metres, cost }
+ * How much DTF film to order for what's missing: each print takes its share
+ * of a 1-metre sheet (1 / prints per sheet), personalised ones the custom
+ * share; designs can share a sheet, so the shares add up before rounding up.
+ *   5 Shqiponja at 4 per sheet + 2 personalised at 4 -> 1.75 -> 2 metres
+ */
+export function dtfOrder(w: World, short: { short: number; perSheet: number }[], customPending: number) {
+	const share = sum(short, (p) => p.short / Math.max(1, p.perSheet)) + customPending / Math.max(1, w.settings.customPerSheet);
+	const metres = share > 0 ? Math.ceil(share - 1e-9) : 0;
+	return { metres, cost: metres * w.settings.sheetPrice };
 }
 
 // ---- Purchases ----------------------------------------------------------------

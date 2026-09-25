@@ -53,6 +53,7 @@
 				<ul class="space-y-1 text-sm text-orange-900">
 					{#each data.toPrint as p (p.printId)}<li class="flex justify-between gap-2"><span>{p.design} · bluzë {COLOR_LABELS[p.color].toLowerCase()}</span><span class="tabular font-semibold">{p.short}</span></li>{/each}
 				</ul>
+				<p class="mt-2 border-t border-orange-200 pt-2 text-sm font-semibold text-orange-900">Porosit ≈ {data.dtfOrder.metres} m DTF · {money(data.dtfOrder.cost)}</p>
 			</section>
 		{/if}
 		{#if data.custom.length}

@@ -85,3 +85,12 @@ describe('customersView', () => {
 		expect(v.map((c) => [c.name, c.orders, c.spent])).toEqual([['Arta Krasniqi', 3, 7500], ['Besa', 1, 5000]]);
 	});
 });
+
+describe('dtfOrder', () => {
+	it('adds up each print’s share of a sheet, then rounds up to whole metres', async () => {
+		const { dtfOrder } = await import('./views');
+		expect(dtfOrder(world(), [{ short: 5, perSheet: 4 }], 2)).toEqual({ metres: 2, cost: 2400 });
+		expect(dtfOrder(world(), [{ short: 4, perSheet: 4 }], 0)).toEqual({ metres: 1, cost: 1200 });
+		expect(dtfOrder(world(), [], 0)).toEqual({ metres: 0, cost: 0 });
+	});
+});
