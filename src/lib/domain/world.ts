@@ -50,6 +50,7 @@ export function apply(w: World, changes: readonly Change[]): World {
 				case 'movement': drop(next.movements, c.id); break;
 				case 'design': drop(next.designs, c.id); break;
 				case 'print': drop(next.prints, c.id); break;
+				case 'customer': drop(next.customers, c.id); break;
 				case 'image': break;
 			}
 		}

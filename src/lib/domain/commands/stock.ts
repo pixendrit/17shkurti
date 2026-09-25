@@ -161,12 +161,14 @@ export function saveSettings(_w: World, s: Settings, _ctx: Context): Result<Chan
 /**
  * clearDemo : World _ Context -> Result<[Change]>
  * Removes the sample orders and purchases, with everything that hangs off
- * them. Real records stay.
+ * them, and the sample customers they leave with no order. Real records stay.
  */
 export function clearDemo(w: World, _input: null, _ctx: Context): Result<Change[]> {
 	const orders = new Set(w.orders.filter((o) => o.isDemo).map((o) => o.id));
 	const purchases = new Set(w.purchases.filter((p) => p.isDemo).map((p) => p.id));
 	if (orders.size === 0 && purchases.size === 0) return fail('Nuk ka të dhëna demo.');
+	const keptCustomers = new Set(w.orders.filter((o) => !orders.has(o.id)).map((o) => o.customerId));
+	const sampleCustomers = new Set(w.orders.filter((o) => orders.has(o.id)).map((o) => o.customerId));
 	const images = w.orders
 		.filter((o) => orders.has(o.id))
 		.flatMap((o) => o.lines.flatMap((l) => (l.artwork.kind === 'custom' ? [l.artwork.front, l.artwork.back] : [])));
@@ -177,6 +179,7 @@ export function clearDemo(w: World, _input: null, _ctx: Context): Result<Change[
 			.map((m): Change => ({ delete: 'movement', id: m.id })),
 		...images.map((id): Change => ({ delete: 'image', id })),
 		...[...orders].map((id): Change => ({ delete: 'order', id })),
-		...[...purchases].map((id): Change => ({ delete: 'purchase', id }))
+		...[...purchases].map((id): Change => ({ delete: 'purchase', id })),
+		...[...sampleCustomers].filter((id) => !keptCustomers.has(id)).map((id): Change => ({ delete: 'customer', id }))
 	]);
 }

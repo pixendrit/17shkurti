@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, type Change, type World } from '../model';
 import type { Result } from '../result';
 import { blank, onHand, printSubject } from '../stock';
 import { apply } from '../world';
-import { context, order, sku, T0, world } from '../testing';
+import { context, customer, order, sku, T0, world } from '../testing';
 import { advance } from './orders';
 import { purchaseTotal } from '../economics';
 import { clearDemo, countStock, deletePurchase, recordPurchase, saveSettings } from './stock';
@@ -88,6 +88,16 @@ describe('saveSettings', () => {
 });
 
 describe('clearDemo', () => {
+	it('removes sample customers left with no order, and keeps real ones', () => {
+		const w0 = world({
+			customers: [customer(), customer({ id: 'fake' })],
+			orders: [order({ id: 'demo', isDemo: true, customerId: 'fake' }), order({ id: 'both', isDemo: true }), order({ id: 'real' })]
+		});
+		const w = run(w0, clearDemo(w0, null, context()));
+		expect(w.customers.map((c) => c.id)).toEqual(['C1']);
+		expect(w.orders.map((o) => o.id)).toEqual(['real']);
+	});
+
 	it('removes sample orders and purchases with what hangs off them, and nothing else', () => {
 		const w0 = world({
 			orders: [order({ id: 'demo', isDemo: true }), order({ id: 'real' })],

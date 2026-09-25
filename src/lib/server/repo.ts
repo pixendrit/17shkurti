@@ -255,7 +255,7 @@ const PUT_ORDER: Table[] = [
 	'images', 'customers', 'designs', 'prints', 'orders', 'order_lines', 'payments', 'purchases', 'purchase_lines', 'stock_movements'
 ];
 /** The order deletes are done in: a row before what it points to. */
-const DELETE_ORDER: Table[] = ['payments', 'stock_movements', 'orders', 'purchases', 'prints', 'designs', 'images'];
+const DELETE_ORDER: Table[] = ['payments', 'stock_movements', 'orders', 'customers', 'purchases', 'prints', 'designs', 'images'];
 
 const DELETE_TABLE: Record<Extract<Change, { delete: string }>['delete'], Table> = {
 	order: 'orders',
@@ -264,7 +264,8 @@ const DELETE_TABLE: Record<Extract<Change, { delete: string }>['delete'], Table>
 	movement: 'stock_movements',
 	image: 'images',
 	design: 'designs',
-	print: 'prints'
+	print: 'prints',
+	customer: 'customers'
 };
 
 const b = (v: boolean) => (v ? 1 : 0);

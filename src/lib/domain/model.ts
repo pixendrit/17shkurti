@@ -273,7 +273,7 @@ export type Change =
 	| { put: 'purchase'; value: Purchase }
 	| { put: 'movement'; value: Movement }
 	| { put: 'settings'; value: Settings }
-	| { delete: 'order' | 'payment' | 'purchase' | 'movement' | 'image' | 'design' | 'print'; id: Id };
+	| { delete: 'order' | 'payment' | 'purchase' | 'movement' | 'image' | 'design' | 'print' | 'customer'; id: Id };
 
 /** Context: what a command needs from outside — the time, and fresh ids. */
 export type Context = { now: Instant; newId: () => Id };
