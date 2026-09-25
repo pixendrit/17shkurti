@@ -59,7 +59,11 @@ export const PAYMENT_LABELS: Record<PaymentMethod, string> = {
 
 export const EXPENSE_LABELS: Record<ExpenseCategory, string> = {
 	packaging: 'Paketim',
-	marketing: 'Marketing',
+	marketing: 'Marketing / reklama',
+	equipment: 'Pajisje',
+	travel: 'Udhëtime',
+	blanks: 'Bluza pa print',
+	dtf: 'Fletë DTF',
 	other: 'Tjetër'
 };
 
@@ -108,8 +112,11 @@ export const EVENT_LABELS: Record<OrderEvent, string> = {
 	undo: 'Zhbëj hapin e fundit'
 };
 
+/** sizeLabel : Size -> String — "M", or "masë e panjohur" */
+export const sizeLabel = (s: Sku['size']) => (s === 'unknown' ? 'masë e panjohur' : s);
+
 /** skuLabel : Sku -> String — "Oversized 200gr · E zezë · M" */
-export const skuLabel = (s: Sku) => `${GARMENT_LABELS[s.garment]} · ${COLOR_LABELS[s.color]} · ${s.size}`;
+export const skuLabel = (s: Sku) => `${GARMENT_LABELS[s.garment]} · ${COLOR_LABELS[s.color]} · ${sizeLabel(s.size)}`;
 
 /** printLabel : World Id -> String — "Shqiponja · bluzë e zezë" */
 export function printLabel(w: Pick<World, 'designs' | 'prints'>, printId: string): string {

@@ -19,8 +19,13 @@ export const COLORS = ['black', 'white'] as const;
 /** Color: a shirt colour. */
 export type Color = (typeof COLORS)[number];
 
+/** The sizes a shirt can be picked in. */
 export const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'] as const;
-export type Size = (typeof SIZES)[number];
+/**
+ * Size: one of SIZES, or 'unknown' for shirts sold before the app whose size
+ * nobody wrote down. Never picked for a new order.
+ */
+export type Size = (typeof SIZES)[number] | 'unknown';
 
 /** Sku: one kind of blank shirt, e.g. an oversized black M. */
 export type Sku = { garment: Garment; color: Color; size: Size };
@@ -201,7 +206,13 @@ export type Movement = {
 
 // ---- Purchases (money out) --------------------------------------------------
 
-export const EXPENSE_CATEGORIES = ['packaging', 'marketing', 'other'] as const;
+/**
+ * blanks / dtf here are money spent on shirts or prints whose details
+ * weren't recorded (before the app): counted as spending, never as stock.
+ */
+export const EXPENSE_CATEGORIES = ['packaging', 'marketing', 'equipment', 'travel', 'blanks', 'dtf', 'other'] as const;
+/** The categories offered when recording an expense by hand. */
+export const EXPENSE_FORM_CATEGORIES = ['packaging', 'marketing', 'equipment', 'travel', 'other'] as const;
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
 export type BlankLine = { sku: Sku; quantity: number; unitCost: Cents };

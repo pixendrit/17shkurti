@@ -29,7 +29,7 @@
 
 	const note = (n: number, units: number) => `· ${plural(n, 'porosi', 'porosi')} · ${units} copë`;
 	const spentLabel = (k: string) =>
-		k === 'blanks' || k === 'dtf' ? PURCHASE_LABELS[k] : EXPENSE_LABELS[k as ExpenseCategory];
+		(EXPENSE_LABELS as Record<string, string>)[k] ?? PURCHASE_LABELS[k as 'blanks'] ?? k;
 	const designLabel = (k: string) => (k === 'custom' ? 'I personalizuar' : k === 'none' ? 'Pa print' : k);
 </script>
 

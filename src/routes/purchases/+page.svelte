@@ -6,7 +6,7 @@
 	import { busy } from '$lib/client/enhance';
 	import { parseEuro } from '$lib/domain/money';
 	import { monthKey } from '$lib/domain/time';
-	import { COLORS, EXPENSE_CATEGORIES, GARMENTS, SIZES } from '$lib/domain/model';
+	import { COLORS, EXPENSE_FORM_CATEGORIES, GARMENTS, SIZES } from '$lib/domain/model';
 	import { money, formatDate, dayInput, euroInput, monthLabel, field, label, primary, COLOR_LABELS, EXPENSE_LABELS, GARMENT_LABELS, PURCHASE_LABELS } from '$lib/ui';
 	import Shirt from '@lucide/svelte/icons/shirt';
 	import Printer from '@lucide/svelte/icons/printer';
@@ -94,7 +94,7 @@
 		{:else}
 			<div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
 				<label class="block"><span class={label}>Data</span><input type="date" name="date" value={today} class={field} /></label>
-				<label class="block"><span class={label}>Kategoria</span><select name="category" class={field}>{#each EXPENSE_CATEGORIES as c (c)}<option value={c}>{EXPENSE_LABELS[c]}</option>{/each}</select></label>
+				<label class="block"><span class={label}>Kategoria</span><select name="category" class={field}>{#each EXPENSE_FORM_CATEGORIES as c (c)}<option value={c}>{EXPENSE_LABELS[c]}</option>{/each}</select></label>
 				<label class="block"><span class={label}>Shuma €</span><input name="amount" inputmode="decimal" required class={field} /></label>
 			</div>
 		{/if}
