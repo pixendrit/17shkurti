@@ -115,7 +115,7 @@ export function ordersView(w: World, tab: OrderTab, q: string) {
 		.sort(newestFirst)
 		.map((o) => ({ ...orderRow(w, o, customers), canMake: plan.get(o.id)?.ready ?? null }))
 		.filter((r) => matches(q, r));
-	return { tab, q, counts, rows, total: sum(rows, (r) => r.total) };
+	return { tab, q, counts, rows, total: sum(rows, (r) => r.total), drafts: draftsView(w) };
 }
 
 /** needLabel : World Need -> String — "3 × Oversized 200gr · E zezë · M" */
@@ -147,6 +147,7 @@ export function orderView(w: World, id: Id) {
 		paid: paid(w.payments, o.id),
 		balance: balance(o, w.payments),
 		events: possibleEvents(o),
+		editableLines: isUnmade(o),
 		readiness: readiness && {
 			ready: readiness.ready,
 			customPending: readiness.customPending,
@@ -171,6 +172,7 @@ export function dashboardView(w: World, now: Instant) {
 	const rows = shelf(w);
 	const s30 = financials(w, 30, now);
 	return {
+		drafts: draftsView(w),
 		openCount: w.orders.filter(isOpen).length,
 		newCount: w.orders.filter((o) => o.status === 'new').length,
 		canMake: unmade.filter((o) => plan.get(o.id)?.ready).map(row),
@@ -373,3 +375,11 @@ export function customersView(w: World, q: string) {
 		)
 		.sort((a, b) => b.spent - a.spent || b.orders - a.orders || a.name.localeCompare(b.name));
 }
+
+// ---- Quick orders --------------------------------------------------------------
+
+/** draftsView : World -> the quick orders waiting to be completed, oldest first */
+export const draftsView = (w: World) =>
+	[...w.drafts]
+		.sort((a, b) => a.createdAt - b.createdAt)
+		.map((d) => ({ ...d, cover: d.screenshots[0] ?? null, count: d.screenshots.length }));

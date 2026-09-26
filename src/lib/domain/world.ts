@@ -18,7 +18,8 @@ export function apply(w: World, changes: readonly Change[]): World {
 		orders: [...w.orders],
 		payments: [...w.payments],
 		purchases: [...w.purchases],
-		movements: [...w.movements]
+		movements: [...w.movements],
+		drafts: [...w.drafts]
 	};
 	const put = <T extends { id: Id }>(list: T[], value: T) => {
 		const i = list.findIndex((x) => x.id === value.id);
@@ -40,6 +41,7 @@ export function apply(w: World, changes: readonly Change[]): World {
 				case 'purchase': put(next.purchases, c.value); break;
 				case 'movement': put(next.movements, c.value); break;
 				case 'settings': next.settings = c.value; break;
+				case 'draft': put(next.drafts, c.value); break;
 				case 'image': break; // pictures aren't part of the world
 			}
 		} else {
@@ -51,6 +53,7 @@ export function apply(w: World, changes: readonly Change[]): World {
 				case 'design': drop(next.designs, c.id); break;
 				case 'print': drop(next.prints, c.id); break;
 				case 'customer': drop(next.customers, c.id); break;
+				case 'draft': drop(next.drafts, c.id); break;
 				case 'image': break;
 			}
 		}
@@ -62,6 +65,7 @@ export const findOrder = (w: World, id: Id) => w.orders.find((o) => o.id === id)
 export const findCustomer = (w: World, id: Id) => w.customers.find((c) => c.id === id);
 export const findDesign = (w: World, id: Id) => w.designs.find((d) => d.id === id);
 export const findPrint = (w: World, id: Id) => w.prints.find((p) => p.id === id);
+export const findDraft = (w: World, id: Id) => w.drafts.find((d) => d.id === id);
 
 /**
  * normalizePhone : String -> String

@@ -25,6 +25,7 @@ import { subjectLabel } from '../labels';
 import type { Instant } from '../time';
 import { findPrint } from '../world';
 import { isAmount, isCount } from './common';
+import { imagesOf } from './orders';
 
 /**
  * PurchaseInput: a purchase as entered, before it has an id.
@@ -169,9 +170,7 @@ export function clearDemo(w: World, _input: null, _ctx: Context): Result<Change[
 	if (orders.size === 0 && purchases.size === 0) return fail('Nuk ka të dhëna demo.');
 	const keptCustomers = new Set(w.orders.filter((o) => !orders.has(o.id)).map((o) => o.customerId));
 	const sampleCustomers = new Set(w.orders.filter((o) => orders.has(o.id)).map((o) => o.customerId));
-	const images = w.orders
-		.filter((o) => orders.has(o.id))
-		.flatMap((o) => o.lines.flatMap((l) => (l.artwork.kind === 'custom' ? [l.artwork.front, l.artwork.back] : [])));
+	const images = w.orders.filter((o) => orders.has(o.id)).flatMap(imagesOf);
 	return ok([
 		...w.payments.filter((p) => orders.has(p.orderId)).map((p): Change => ({ delete: 'payment', id: p.id })),
 		...w.movements

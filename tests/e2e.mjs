@@ -165,6 +165,48 @@ p.once('dialog', (d) => d.accept());
 await p.getByRole('button', { name: 'Fshi porosinë' }).click(); await p.waitForURL(/\/orders$/);
 check('order deleted', p.url().endsWith('/orders'));
 
+// A quick order: screenshots now, details later
+await go('/orders/quick');
+await p.locator('input[type=file]:not([name])').setInputFiles([picture('chat1'), picture('chat2')]);
+await p.waitForTimeout(800);
+check('quick order previews both screenshots', (await p.locator('img[alt^="Screenshot"]').count()) === 2);
+await p.getByLabel('Emri').fill('Test Nxitim');
+await p.getByLabel('Shënim').fill('2 të zeza L');
+await p.getByRole('button', { name: 'Ruaj për më vonë' }).click(); await settle();
+check('quick order saved', (await body()).includes('U ruajt'), await alert());
+await go('/');
+check('waiting on the dashboard', (await body()).includes("Për t'u plotësuar") && (await body()).includes('Test Nxitim'));
+await p.getByRole('link', { name: /Test Nxitim/ }).click();
+await p.waitForURL(/draft=/); await settle();
+check('order form filled in from it', (await p.getByLabel('Emri *').inputValue()) === 'Test Nxitim' && (await p.locator('img[alt^="Screenshot"]').count()) === 2);
+await p.getByLabel('Telefoni *').fill('044 555 111');
+await p.getByLabel('Printi').first().selectOption({ label: 'UÇK' });
+await p.getByRole('button', { name: 'Ruaj porosinë' }).click();
+await p.waitForURL(/\/orders\/[0-9a-f-]{36}$/);
+const quick = p.url().replace(B, '');
+check('screenshots went with the order', (await p.locator('section', { hasText: 'Biseda' }).locator('img[alt^="Screenshot"]').count()) === 2);
+p.once('dialog', (d) => d.accept());
+await p.getByRole('button', { name: 'Hiq screenshot-in 1' }).click(); await settle();
+await p.locator('section', { hasText: 'Biseda' }).locator('input[type=file]:not([name])').setInputFiles(picture('chat3'));
+await p.waitForTimeout(600);
+await p.getByRole('button', { name: 'Ruaj screenshot-et' }).click(); await settle();
+check('one removed, one added', (await p.locator('section', { hasText: 'Biseda' }).locator('a img[alt^="Screenshot"]').count()) === 2, await alert());
+await go('/');
+check('no longer waiting to be completed', (await p.locator('section', { hasText: "Për t'u plotësuar" }).count()) === 0);
+
+// Change the shirts before the order is made
+await go(quick);
+await p.getByRole('link', { name: 'Ndrysho artikujt' }).click();
+await p.waitForURL(/\/items$/); await settle();
+await p.getByLabel('Masa').first().selectOption('L');
+await p.getByLabel('Sasia').first().fill('2');
+await p.getByRole('button', { name: 'Shto artikull' }).click();
+await p.getByLabel('Ngjyra').nth(1).selectOption('white');
+await p.getByRole('button', { name: 'Ruaj artikujt' }).click();
+await p.waitForURL(/\/orders\/[0-9a-f-]{36}$/); await settle();
+t = await body();
+check('shirts changed', t.includes('2 × UÇK · Oversized 200gr · E zezë · L') && t.includes('1 × UÇK · Oversized 200gr · E bardhë · M'), t.slice(t.indexOf('Artikujt'), t.indexOf('Artikujt') + 200));
+
 // Stock count correction goes into the ledger
 await go('/stock');
 await p.getByLabel('Çfarë').selectOption({ label: 'Oversized 200gr · E zezë · XXL' });
@@ -213,7 +255,7 @@ check('customer listed', (await body()).includes('Test Influencer'));
 
 // Mobile: no page scrolls sideways
 await p.setViewportSize({ width: 390, height: 844 });
-for (const path of ['/', '/orders', '/orders/new', sale, '/shipments', '/stock', '/purchases', '/designs', '/stats', '/settings', '/customers']) {
+for (const path of ['/', '/orders', '/orders/new', '/orders/quick', sale, '/shipments', '/stock', '/purchases', '/designs', '/stats', '/settings', '/customers']) {
 	await go(path);
 	const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 	check(`mobile ${path.slice(0, 20)} fits`, over <= 0, `${over}px over`);

@@ -16,11 +16,13 @@ import {
 	type Delivery,
 	type DeliveryMethod,
 	type Id,
+	type Image,
 	type Movement,
 	type Order,
 	type OrderEvent,
 	type OrderKind,
 	type OrderLine,
+	type Draft,
 	type PaymentMethod,
 	type Sku,
 	type Upload,
@@ -31,7 +33,7 @@ import { step } from '../process';
 import { fail, ok, type Result } from '../result';
 import { needs, onHand, shortfall, subjectKey } from '../stock';
 import type { Instant } from '../time';
-import { apply, customerByPhone, findCustomer, findOrder, nextCode } from '../world';
+import { apply, customerByPhone, findCustomer, findDraft, findOrder, nextCode } from '../world';
 import { isAmount, isCount, storeImage } from './common';
 
 // ---- Inputs -----------------------------------------------------------------
@@ -49,7 +51,8 @@ export type ArtworkInput =
 	| { kind: 'design'; designId: Id }
 	| { kind: 'custom'; front: Upload | null; back: Upload | null };
 
-export type LineInput = { sku: Sku; artwork: ArtworkInput; quantity: number; unitPrice: Cents };
+/** LineInput: a line as entered; `id` names the line it edits, if any. */
+export type LineInput = { id?: Id | null; sku: Sku; artwork: ArtworkInput; quantity: number; unitPrice: Cents };
 
 /** DeliveryInput: cost null means "the usual price" from Settings. */
 export type DeliveryInput = { method: DeliveryMethod; cost: Cents | null; trackingRef: string };
@@ -65,6 +68,10 @@ export type NewOrder = {
 	notes: string;
 	/** Paid in full when the order was taken, and how. */
 	paidWith: PaymentMethod | null;
+	/** Screenshots of the conversation. */
+	screenshots: Upload[];
+	/** The quick order this completes, if any. */
+	fromDraft: Id | null;
 };
 
 // ---- Customers --------------------------------------------------------------
@@ -98,31 +105,34 @@ function resolveCustomer(
 	return [next, same ? [] : [{ put: 'customer', value: next }]];
 }
 
-// ---- Taking an order --------------------------------------------------------
+// ---- Shirts -----------------------------------------------------------------
 
 const MAX_LINES = 50;
 
 /**
- * createOrder : World NewOrder Context -> Result<[Change]>
- * Takes an order. Everything is checked before anything is decided, so a
- * refused order leaves nothing behind. Each shirt's cost is fixed now.
+ * makeLines : World [LineInput] Boolean [OrderLine] Context -> Result<(lines, changes)>
+ * The order lines for what was entered, and the pictures to store for them.
+ * A line that keeps the id of one of `previous` stays that line: it keeps
+ * its cost snapshot while its shirt and print are the same, and a
+ * personalised line keeps its mockups (and whether its print arrived)
+ * unless new ones are uploaded. Every other line costs what it costs today.
  */
-export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Change[]> {
-	const who = checkCustomer(input.customer);
-	if (!who.ok) return who;
-	if (!(ORDER_KINDS as readonly string[]).includes(input.kind)) return fail('Lloji i porosisë i panjohur.');
-	if (!(CHANNELS as readonly string[]).includes(input.channel)) return fail('Burimi i panjohur.');
-	if (input.lines.length === 0) return fail('Shtoni të paktën një artikull.');
-	if (input.lines.length > MAX_LINES) return fail('Shumë artikuj në një porosi.');
-	const gift = input.kind === 'gift';
-	if (!isAmount(input.shippingCharged) || !isAmount(input.discount)) return fail('Shumat nuk janë të sakta.');
-
+export function makeLines(
+	w: World,
+	inputs: LineInput[],
+	gift: boolean,
+	previous: OrderLine[],
+	ctx: Context
+): Result<{ lines: OrderLine[]; changes: Change[] }> {
+	if (inputs.length === 0) return fail('Shtoni të paktën një artikull.');
+	if (inputs.length > MAX_LINES) return fail('Shumë artikuj në një porosi.');
 	const changes: Change[] = [];
 	const lines: OrderLine[] = [];
-	for (const [i, l] of input.lines.entries()) {
+	for (const [i, l] of inputs.entries()) {
 		const n = `Artikulli ${i + 1}`;
 		if (!isCount(l.quantity)) return fail(`${n}: sasia duhet të jetë një numër i plotë, të paktën 1.`);
 		if (!gift && !(isAmount(l.unitPrice) && l.unitPrice > 0)) return fail(`${n}: vendosni çmimin.`);
+		const before = l.id ? previous.find((p) => p.id === l.id) : undefined;
 
 		let artwork: OrderLine['artwork'];
 		const a = l.artwork;
@@ -139,23 +149,80 @@ export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Cha
 			}
 			artwork = { kind: 'print', printId: print.id };
 		} else {
-			if (!a.front || !a.back) return fail(`${n} është i personalizuar: ngarkoni mockup-in para dhe pas.`);
-			const front = storeImage(a.front, ctx);
+			const kept = before?.artwork.kind === 'custom' ? before.artwork : null;
+			const pic = (u: Upload | null, old: Id | undefined): Result<Id | null> => {
+				if (!u) return ok(old ?? null);
+				const img = storeImage(u, ctx);
+				if (!img.ok) return img;
+				changes.push({ put: 'image', value: img.value });
+				return ok(img.value.id);
+			};
+			const front = pic(a.front, kept?.front);
 			if (!front.ok) return front;
-			const back = storeImage(a.back, ctx);
+			const back = pic(a.back, kept?.back);
 			if (!back.ok) return back;
-			changes.push({ put: 'image', value: front.value }, { put: 'image', value: back.value });
-			artwork = { kind: 'custom', front: front.value.id, back: back.value.id, printReady: false };
+			if (!front.value || !back.value) return fail(`${n} është i personalizuar: ngarkoni mockup-in para dhe pas.`);
+			const same = kept && kept.front === front.value && kept.back === back.value;
+			artwork = { kind: 'custom', front: front.value, back: back.value, printReady: same ? kept.printReady : false };
 		}
+		const sameShirt =
+			before && before.sku.garment === l.sku.garment && JSON.stringify(before.artwork) === JSON.stringify(artwork);
 		lines.push({
-			id: ctx.newId(),
+			id: before?.id ?? ctx.newId(),
 			sku: { ...l.sku },
 			artwork,
 			quantity: l.quantity,
 			unitPrice: gift ? 0 : l.unitPrice,
-			cost: lineCost(w, l.sku.garment, artwork)
+			cost: sameShirt ? before.cost : lineCost(w, l.sku.garment, artwork)
 		});
 	}
+	// Mockups of personalised lines that are gone, or were replaced, go too.
+	const inUse = new Set(lines.flatMap((l) => (l.artwork.kind === 'custom' ? [l.artwork.front, l.artwork.back] : [])));
+	for (const p of previous)
+		if (p.artwork.kind === 'custom')
+			for (const id of [p.artwork.front, p.artwork.back]) if (!inUse.has(id)) changes.push({ delete: 'image', id });
+	return ok({ lines, changes });
+}
+
+/** storeAll : [Upload] Context -> Result<[Image]> — every picture, or why one can't be stored. */
+function storeAll(uploads: Upload[], ctx: Context): Result<Image[]> {
+	if (uploads.length > MAX_SCREENSHOTS) return fail(`Deri në ${MAX_SCREENSHOTS} foto njëherësh.`);
+	const out: Image[] = [];
+	for (const u of uploads) {
+		const img = storeImage(u, ctx);
+		if (!img.ok) return img;
+		out.push(img.value);
+	}
+	return ok(out);
+}
+
+const MAX_SCREENSHOTS = 12;
+
+// ---- Taking an order --------------------------------------------------------
+
+/**
+ * createOrder : World NewOrder Context -> Result<[Change]>
+ * Takes an order. Everything is checked before anything is decided, so a
+ * refused order leaves nothing behind. Each shirt's cost is fixed now.
+ * Completing a draft carries its screenshots over and removes the draft.
+ */
+export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Change[]> {
+	const who = checkCustomer(input.customer);
+	if (!who.ok) return who;
+	if (!(ORDER_KINDS as readonly string[]).includes(input.kind)) return fail('Lloji i porosisë i panjohur.');
+	if (!(CHANNELS as readonly string[]).includes(input.channel)) return fail('Burimi i panjohur.');
+	const gift = input.kind === 'gift';
+	if (!isAmount(input.shippingCharged) || !isAmount(input.discount)) return fail('Shumat nuk janë të sakta.');
+	const draft = input.fromDraft ? findDraft(w, input.fromDraft) : null;
+	if (input.fromDraft && !draft) return fail('Kjo porosi e shpejtë është plotësuar ose fshirë tashmë.');
+
+	const made = makeLines(w, input.lines, gift, [], ctx);
+	if (!made.ok) return made;
+	const { lines } = made.value;
+	const changes: Change[] = [...made.value.changes];
+	const shots = storeAll(input.screenshots, ctx);
+	if (!shots.ok) return shots;
+	changes.push(...shots.value.map((value): Change => ({ put: 'image', value })));
 
 	const subtotal = sum(lines, (l) => l.quantity * l.unitPrice);
 	if (!gift && input.discount > subtotal + input.shippingCharged) return fail('Zbritja është më e madhe se porosia.');
@@ -176,6 +243,7 @@ export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Cha
 		shippingCharged: gift ? 0 : input.shippingCharged,
 		discount: gift ? 0 : input.discount,
 		notes: input.notes.trim(),
+		screenshots: [...(draft?.screenshots ?? []), ...shots.value.map((i) => i.id)],
 		status: 'new',
 		stockTracked: true,
 		isDemo: false,
@@ -187,6 +255,7 @@ export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Cha
 		cancelledAt: null
 	};
 	changes.push(...customerChanges, { put: 'order', value: order });
+	if (draft) changes.push({ delete: 'draft', id: draft.id });
 
 	if (input.paidWith && !gift) {
 		if (!(PAYMENT_METHODS as readonly string[]).includes(input.paidWith)) return fail('Mënyra e pagesës e panjohur.');
@@ -272,9 +341,15 @@ export function setPrintReady(
 	return ok([{ put: 'order', value: { ...o, lines } }]);
 }
 
+/** imagesOf : Order -> [Id] — every picture an order owns: mockups and screenshots. */
+export const imagesOf = (o: Order): Id[] => [
+	...o.lines.flatMap((l) => (l.artwork.kind === 'custom' ? [l.artwork.front, l.artwork.back] : [])),
+	...o.screenshots
+];
+
 /**
  * deleteOrder : World Id Context -> Result<[Change]>
- * Removes an order as if it never happened: its payments, its mockups, and
+ * Removes an order as if it never happened: its payments, its pictures, and
  * its stock movements go too, so what it took is back on the shelf.
  */
 export function deleteOrder(w: World, orderId: Id, _ctx: Context): Result<Change[]> {
@@ -283,15 +358,8 @@ export function deleteOrder(w: World, orderId: Id, _ctx: Context): Result<Change
 	return ok([
 		...w.payments.filter((p) => p.orderId === o.id).map((p): Change => ({ delete: 'payment', id: p.id })),
 		...w.movements.filter((m) => m.orderId === o.id).map((m): Change => ({ delete: 'movement', id: m.id })),
-		...o.lines.flatMap((l): Change[] =>
-			l.artwork.kind === 'custom'
-				? [
-						{ delete: 'image', id: l.artwork.front },
-						{ delete: 'image', id: l.artwork.back }
-					]
-				: []
-		),
-		{ delete: 'order', id: o.id }
+		{ delete: 'order', id: o.id },
+		...imagesOf(o).map((id): Change => ({ delete: 'image', id }))
 	]);
 }
 
@@ -409,4 +477,75 @@ export function settle(w: World, input: { orderIds: Id[]; method: PaymentMethod 
 export function deletePayment(w: World, paymentId: Id, _ctx: Context): Result<Change[]> {
 	if (!w.payments.some((p) => p.id === paymentId)) return fail('Pagesa nuk u gjet.');
 	return ok([{ delete: 'payment', id: paymentId }]);
+}
+
+// ---- Changing the shirts -----------------------------------------------------
+
+/**
+ * editLines : World (order, [LineInput]) Context -> Result<[Change]>
+ * Changes what an order is for (a size, a colour, one more shirt) while
+ * it isn't made yet. Once made, its shirts came off the shelf and stay.
+ */
+export function editLines(w: World, input: { orderId: Id; lines: LineInput[] }, ctx: Context): Result<Change[]> {
+	const o = findOrder(w, input.orderId);
+	if (!o) return fail('Porosia nuk u gjet.');
+	if (o.status !== 'new' && o.status !== 'in_production')
+		return fail(`${o.code} është bërë tashmë: artikujt nuk ndryshojnë më.`);
+	const made = makeLines(w, input.lines, o.kind === 'gift', o.lines, ctx);
+	if (!made.ok) return made;
+	const next = { ...o, lines: made.value.lines };
+	const e = sum(next.lines, (l) => l.quantity * l.unitPrice);
+	if (o.kind === 'sale' && o.discount > e + o.shippingCharged) return fail('Zbritja është më e madhe se porosia.');
+	return ok([...made.value.changes.filter((c) => 'put' in c), { put: 'order', value: next }, ...made.value.changes.filter((c) => 'delete' in c)]);
+}
+
+// ---- Screenshots ---------------------------------------------------------------
+
+/** addScreenshots : World (order, [Upload]) Context -> Result<[Change]> — more of the conversation. */
+export function addScreenshots(w: World, input: { orderId: Id; uploads: Upload[] }, ctx: Context): Result<Change[]> {
+	const o = findOrder(w, input.orderId);
+	if (!o) return fail('Porosia nuk u gjet.');
+	if (input.uploads.length === 0) return fail('Zgjidhni të paktën një foto.');
+	const shots = storeAll(input.uploads, ctx);
+	if (!shots.ok) return shots;
+	return ok([
+		...shots.value.map((value): Change => ({ put: 'image', value })),
+		{ put: 'order', value: { ...o, screenshots: [...o.screenshots, ...shots.value.map((i) => i.id)] } }
+	]);
+}
+
+/** removeScreenshot : World (order, image) Context -> Result<[Change]> */
+export function removeScreenshot(w: World, input: { orderId: Id; imageId: Id }, _ctx: Context): Result<Change[]> {
+	const o = findOrder(w, input.orderId);
+	if (!o || !o.screenshots.includes(input.imageId)) return fail('Fotoja nuk u gjet.');
+	return ok([
+		{ put: 'order', value: { ...o, screenshots: o.screenshots.filter((id) => id !== input.imageId) } },
+		{ delete: 'image', id: input.imageId }
+	]);
+}
+
+// ---- Quick orders (drafts) -----------------------------------------------------
+
+export type DraftInput = { name: string; phone: string; note: string; screenshots: Upload[] };
+
+/**
+ * createDraft : World DraftInput Context -> Result<[Change]>
+ * Catches an order in a hurry: screenshots of the conversation, and a
+ * name, phone or note if there's time. Something must be there to go on.
+ */
+export function createDraft(w: World, input: DraftInput, ctx: Context): Result<Change[]> {
+	const name = input.name.trim(), phone = input.phone.trim(), note = input.note.trim();
+	if (input.screenshots.length === 0 && !name && !phone && !note)
+		return fail('Shtoni një screenshot të bisedës, ose të paktën një emër ose shënim.');
+	const shots = storeAll(input.screenshots, ctx);
+	if (!shots.ok) return shots;
+	const draft: Draft = { id: ctx.newId(), createdAt: ctx.now, name, phone, note, screenshots: shots.value.map((i) => i.id) };
+	return ok([...shots.value.map((value): Change => ({ put: 'image', value })), { put: 'draft', value: draft }]);
+}
+
+/** deleteDraft : World Id Context -> Result<[Change]> — a quick order that won't become one. */
+export function deleteDraft(w: World, draftId: Id, _ctx: Context): Result<Change[]> {
+	const d = findDraft(w, draftId);
+	if (!d) return fail('Porosia e shpejtë nuk u gjet.');
+	return ok([{ delete: 'draft', id: d.id }, ...d.screenshots.map((id): Change => ({ delete: 'image', id }))]);
 }

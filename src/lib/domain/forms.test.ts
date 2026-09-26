@@ -52,13 +52,15 @@ describe('parseNewOrder', () => {
 				channel: 'messenger',
 				delivery: { method: 'courier', cost: null, trackingRef: '' },
 				lines: [
-					{ sku: { garment: 'oversized_200g', color: 'black', size: 'L' }, artwork: { kind: 'design', designId: 'D1' }, quantity: 2, unitPrice: 2500 },
-					{ sku: { garment: 'regular_fit', color: 'white', size: 'S' }, artwork: { kind: 'custom', front: png, back: png }, quantity: 1, unitPrice: 3050 }
+					{ id: null, sku: { garment: 'oversized_200g', color: 'black', size: 'L' }, artwork: { kind: 'design', designId: 'D1' }, quantity: 2, unitPrice: 2500 },
+					{ id: null, sku: { garment: 'regular_fit', color: 'white', size: 'S' }, artwork: { kind: 'custom', front: png, back: png }, quantity: 1, unitPrice: 3050 }
 				],
 				shippingCharged: 0,
 				discount: 250,
 				notes: '',
-				paidWith: null
+				paidWith: null,
+				screenshots: [],
+				fromDraft: null
 			}
 		});
 	});

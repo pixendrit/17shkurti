@@ -1,6 +1,8 @@
 <script lang="ts">
 	import StatTile from '$lib/components/StatTile.svelte';
 	import OrderList from '$lib/components/OrderList.svelte';
+	import DraftList from '$lib/components/DraftList.svelte';
+	import Zap from '@lucide/svelte/icons/zap';
 	import { money, plural } from '$lib/ui';
 	import Plus from '@lucide/svelte/icons/plus';
 	import CircleCheck from '@lucide/svelte/icons/circle-check';
@@ -24,10 +26,17 @@
 			{plural(data.openCount, 'porosi e hapur', 'porosi të hapura')}{#if data.newCount > 0}, {plural(data.newCount, 'e re', 'të reja')}{/if}
 		</p>
 	</div>
-	<a href="/orders/new" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
-		<Plus class="size-4" /> Porosi e re
-	</a>
+	<div class="flex gap-2">
+		<a href="/orders/quick" class="hidden items-center gap-1.5 whitespace-nowrap rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 lg:inline-flex">
+			<Zap class="size-4" /> E shpejtë
+		</a>
+		<a href="/orders/new" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+			<Plus class="size-4" /> Porosi e re
+		</a>
+	</div>
 </div>
+
+<DraftList drafts={data.drafts} />
 
 <div class="mb-4 grid grid-cols-3 gap-3">
 	<StatTile label="Të ardhurat (30 ditë)" value={money(data.revenue30)} />

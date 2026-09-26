@@ -1,6 +1,8 @@
 <script lang="ts">
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import Empty from '$lib/components/Empty.svelte';
+	import DraftList from '$lib/components/DraftList.svelte';
+	import Zap from '@lucide/svelte/icons/zap';
 	import { money, formatDate, plural, CHANNEL_LABELS } from '$lib/ui';
 	import { ORDER_TABS, ORDER_TAB_LABELS } from '$lib/domain/views';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -18,10 +20,17 @@
 
 <div class="mb-5 flex items-center justify-between gap-3">
 	<h1 class="text-xl font-semibold text-slate-900">Porositë</h1>
-	<a href="/orders/new" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
-		<Plus class="size-4" /> Porosi e re
-	</a>
+	<div class="flex gap-2">
+		<a href="/orders/quick" class="hidden items-center gap-1.5 whitespace-nowrap rounded-lg bg-amber-600 px-3 py-2 text-sm font-medium text-white hover:bg-amber-700 lg:inline-flex">
+			<Zap class="size-4" /> E shpejtë
+		</a>
+		<a href="/orders/new" class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800">
+			<Plus class="size-4" /> Porosi e re
+		</a>
+	</div>
 </div>
+
+<DraftList drafts={data.drafts} />
 
 <form class="mb-3 flex gap-2" data-sveltekit-keepfocus action="/orders">
 	<input type="hidden" name="tab" value={data.tab} />

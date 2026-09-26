@@ -34,7 +34,7 @@ export function shrink(input: HTMLInputElement, onpreview?: (url: string | null,
 	};
 }
 
-async function shrinkImage(file: File, maxSide = 900): Promise<Blob> {
+export async function shrinkImage(file: File, maxSide = 900): Promise<Blob> {
 	const bitmap = await createImageBitmap(file);
 	const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
 	const canvas = document.createElement('canvas');

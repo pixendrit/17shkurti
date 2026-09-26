@@ -3,7 +3,7 @@
  * or a message saying which field is wrong. Pure: the shell hands over the
  * fields (and uploaded pictures already read into Uploads).
  */
-import type { NewOrder, OrderEdit, LineInput, CustomerInput, DeliveryInput } from './commands/orders';
+import type { NewOrder, OrderEdit, LineInput, CustomerInput, DeliveryInput, DraftInput } from './commands/orders';
 import type { PurchaseInput } from './commands/stock';
 import { parseEuro, type Cents } from './money';
 import {
@@ -34,11 +34,21 @@ import { parseDay, type Instant } from './time';
  *   text(name):   the field's value, "" when absent
  *   list(name):   every value of a repeated field (checkboxes, rows)
  *   upload(name): the picture uploaded in that field, if any
+ *   uploads(name): every picture uploaded in that field (a multi-picture field)
  */
-export type Form = { text(name: string): string; list(name: string): string[]; upload(name: string): Upload | null };
+export type Form = {
+	text(name: string): string;
+	list(name: string): string[];
+	upload(name: string): Upload | null;
+	uploads(name: string): Upload[];
+};
 
 /** formOf : fields uploads -> Form — a form from plain values (for tests and the shell). */
-export function formOf(fields: Record<string, string | string[]>, uploads: Record<string, Upload> = {}): Form {
+export function formOf(fields: Record<string, string | string[]>, uploads: Record<string, Upload | Upload[]> = {}): Form {
+	const many = (n: string): Upload[] => {
+		const u = uploads[n];
+		return u == null ? [] : Array.isArray(u) ? u : [u];
+	};
 	return {
 		text: (n) => {
 			const v = fields[n];
@@ -48,7 +58,8 @@ export function formOf(fields: Record<string, string | string[]>, uploads: Recor
 			const v = fields[n];
 			return v == null ? [] : Array.isArray(v) ? v : [v];
 		},
-		upload: (n) => uploads[n] ?? null
+		upload: (n) => many(n)[0] ?? null,
+		uploads: many
 	};
 }
 
@@ -127,17 +138,39 @@ function lineFrom(f: Form, k: string, n: number): Result<LineInput> {
 			: art.startsWith('design:')
 				? { kind: 'design', designId: art.slice('design:'.length) }
 				: { kind: 'none' };
-	return ok({ sku: { garment: garment.value, color: color.value, size: size.value }, artwork, quantity, unitPrice: price.value });
+	return ok({
+		id: f.text(`id-${k}`) || null,
+		sku: { garment: garment.value, color: color.value, size: size.value },
+		artwork,
+		quantity,
+		unitPrice: price.value
+	});
 }
 
-/** parseNewOrder : Form -> Result<NewOrder> */
-export function parseNewOrder(f: Form): Result<NewOrder> {
+/** parseLines : Form -> Result<[LineInput]> — the line rows, as the new-order form and the edit form send them. */
+export function parseLines(f: Form): Result<LineInput[]> {
 	const lines: LineInput[] = [];
 	for (const [i, k] of f.list('line').entries()) {
 		const l = lineFrom(f, k, i + 1);
 		if (!l.ok) return l;
 		lines.push(l.value);
 	}
+	return ok(lines);
+}
+
+/** parseDraft : Form -> DraftInput — a quick order: screenshots, and whatever else was typed. */
+export const parseDraft = (f: Form): DraftInput => ({
+	name: f.text('name'),
+	phone: f.text('phone'),
+	note: f.text('note'),
+	screenshots: f.uploads('screenshot')
+});
+
+/** parseNewOrder : Form -> Result<NewOrder> */
+export function parseNewOrder(f: Form): Result<NewOrder> {
+	const parsed = parseLines(f);
+	if (!parsed.ok) return parsed;
+	const lines = parsed.value;
 	const delivery = deliveryFrom(f);
 	if (!delivery.ok) return delivery;
 	const shippingCharged = amount(f.text('shippingCharged'), 'Transporti nga klienti');
@@ -154,7 +187,9 @@ export function parseNewOrder(f: Form): Result<NewOrder> {
 		shippingCharged: shippingCharged.value,
 		discount: discount.value,
 		notes: f.text('notes'),
-		paidWith: paid ? pick(PAYMENT_METHODS, paid, 'cash') : null
+		paidWith: paid ? pick(PAYMENT_METHODS, paid, 'cash') : null,
+		screenshots: f.uploads('screenshot'),
+		fromDraft: f.text('fromDraft') || null
 	});
 }
 

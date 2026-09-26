@@ -98,6 +98,21 @@ Order     = { id, code: 'HS-0042', customerId, kind, channel, delivery,
           // whose shirts were never in the app's stock
 ```
 
+### Screenshots and quick orders
+```
+Order.screenshots = ImageId[]   // the conversation the order came from
+Draft = { id, createdAt, name, phone, note, screenshots: ImageId[] }
+```
+A Draft is an order caught in a hurry: screenshots and whatever was at hand.
+It isn't an Order (no shirts, maybe no customer) and never touches stock or
+money. Completing it runs the normal createOrder with `fromDraft`: the
+order takes the draft's screenshots and the draft goes away.
+
+An order's shirts can be changed while it is unmade (`editLines`): a line
+that stays the same shirt keeps its cost snapshot; a new or changed one
+costs what it costs today. Once made, its shirts came off the shelf and
+stay.
+
 ### Status and events (the order process)
 ```
 Status = 'new' | 'in_production' | 'ready' | 'with_courier'

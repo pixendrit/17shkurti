@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, createOrder, deleteOrder, recordPayment, setPrintReady } from '$lib/domain/commands/orders';
+import { addScreenshots, advance, createDraft, createOrder, deleteDraft, deleteOrder, editLines, recordPayment, removeScreenshot, setPrintReady } from '$lib/domain/commands/orders';
 import { createDesign, setPrintImage } from '$lib/domain/commands/catalog';
 import { clearDemo, countStock, deletePurchase, recordPurchase, saveSettings } from '$lib/domain/commands/stock';
 import { DEFAULT_SETTINGS, emptyWorld, type Change, type World } from '$lib/domain/model';
@@ -35,7 +35,8 @@ function sortLike(actual: World, expected: World): World {
 		orders: order(actual.orders, expected.orders),
 		payments: order(actual.payments, expected.payments),
 		purchases: order(actual.purchases, expected.purchases),
-		movements: order(actual.movements, expected.movements)
+		movements: order(actual.movements, expected.movements),
+		drafts: order(actual.drafts, expected.drafts)
 	};
 }
 
@@ -73,11 +74,30 @@ describe('repository', () => {
 			shippingCharged: 0,
 			discount: 0,
 			notes: 'dy bluza',
-			paidWith: null
+			paidWith: null,
+			screenshots: [png],
+			fromDraft: null as string | null
 		};
-		w = await roundTrip(db, w, createOrder(w, input, ctx(60)));
+		// Caught in a hurry first, completed later.
+		w = await roundTrip(db, w, createDraft(w, { name: 'Arta', phone: '', note: 'e zezë M', screenshots: [png, png] }, ctx(30)));
+		expect(w.drafts[0].screenshots).toHaveLength(2);
+		w = await roundTrip(db, w, createOrder(w, { ...input, fromDraft: w.drafts[0].id }, ctx(60)));
+		expect(w.drafts).toEqual([]);
 		const o = w.orders[0];
 		expect(o.lines).toHaveLength(2);
+		expect(o.screenshots).toHaveLength(3);
+		w = await roundTrip(db, w, removeScreenshot(w, { orderId: o.id, imageId: o.screenshots[0] }, ctx()));
+		w = await roundTrip(db, w, addScreenshots(w, { orderId: o.id, uploads: [png] }, ctx()));
+		expect(w.orders[0].screenshots).toHaveLength(3);
+		// A size changed and a plain shirt added before it's made.
+		const [l1, l2] = w.orders[0].lines;
+		w = await roundTrip(db, w, editLines(w, { orderId: o.id, lines: [
+			{ id: l1.id, sku: sku(), artwork: { kind: 'design', designId: w.designs[0].id }, quantity: 2, unitPrice: 2500 },
+			{ id: l2.id, sku: sku({ size: 'L' }), artwork: { kind: 'custom', front: null, back: null }, quantity: 1, unitPrice: 3000 }
+		] }, ctx()));
+		expect(w.orders[0].lines.map((l) => l.id)).toEqual([l1.id, l2.id]);
+		const d2 = await roundTrip(db, w, createDraft(w, { name: '', phone: '', note: 'do të vijë', screenshots: [png] }, ctx()));
+		w = await roundTrip(db, d2, deleteDraft(d2, d2.drafts[0].id, ctx()));
 
 		w = await roundTrip(db, w, setPrintReady(w, { orderId: o.id, lineId: o.lines[1].id, ready: true }, ctx()));
 		w = await roundTrip(db, w, countStock(w, { subject: blank(sku({ size: 'L' })), count: 1, note: 'numërim' }, ctx()));
@@ -95,6 +115,17 @@ describe('repository', () => {
 		w = await roundTrip(db, w, deleteOrder(w, o.id, ctx()));
 		expect(w.orders).toEqual([]);
 		w = await roundTrip(db, w, deletePurchase(w, w.purchases[0].id, ctx()));
+
+		// Every picture still stored is still used by something.
+		const orphans = await db
+			.prepare(
+				`SELECT COUNT(*) AS n FROM images WHERE id NOT IN (
+					SELECT front_image_id FROM prints WHERE front_image_id IS NOT NULL UNION SELECT back_image_id FROM prints WHERE back_image_id IS NOT NULL
+					UNION SELECT front_image_id FROM order_lines WHERE front_image_id IS NOT NULL UNION SELECT back_image_id FROM order_lines WHERE back_image_id IS NOT NULL
+					UNION SELECT image_id FROM order_screenshots UNION SELECT image_id FROM draft_screenshots)`
+			)
+			.first<{ n: number }>();
+		expect(orphans?.n).toBe(0);
 	});
 
 	it('refuses what the schema forbids, writing nothing', async () => {

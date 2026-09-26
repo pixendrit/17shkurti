@@ -152,6 +152,8 @@ export type Order = {
 	shippingCharged: Cents; // what the customer pays for shipping; usually 0
 	discount: Cents;
 	notes: string;
+	/** Screenshots of the conversation the order came from, in order. */
+	screenshots: Id[];
 	status: Status;
 	/**
 	 * Whether making it takes stock from the ledger. False for orders made
@@ -165,6 +167,21 @@ export type Order = {
 	deliveredAt: Instant | null;
 	returnedAt: Instant | null;
 	cancelledAt: Instant | null;
+};
+
+/**
+ * Draft: an order caught in a hurry: screenshots of the conversation and
+ * whatever else was at hand. It isn't an order yet (it has no shirts and
+ * maybe no customer) and never touches stock or money; completing it
+ * creates the Order and the draft goes away.
+ */
+export type Draft = {
+	id: Id;
+	createdAt: Instant;
+	name: string;
+	phone: string;
+	note: string;
+	screenshots: Id[];
 };
 
 // ---- Payments ---------------------------------------------------------------
@@ -265,6 +282,7 @@ export type World = {
 	payments: Payment[];
 	purchases: Purchase[];
 	movements: Movement[];
+	drafts: Draft[];
 };
 
 /**
@@ -284,7 +302,8 @@ export type Change =
 	| { put: 'purchase'; value: Purchase }
 	| { put: 'movement'; value: Movement }
 	| { put: 'settings'; value: Settings }
-	| { delete: 'order' | 'payment' | 'purchase' | 'movement' | 'image' | 'design' | 'print' | 'customer'; id: Id };
+	| { put: 'draft'; value: Draft }
+	| { delete: 'order' | 'payment' | 'purchase' | 'movement' | 'image' | 'design' | 'print' | 'customer' | 'draft'; id: Id };
 
 /** Context: what a command needs from outside — the time, and fresh ids. */
 export type Context = { now: Instant; newId: () => Id };
@@ -297,5 +316,6 @@ export const emptyWorld = (): World => ({
 	orders: [],
 	payments: [],
 	purchases: [],
-	movements: []
+	movements: [],
+	drafts: []
 });

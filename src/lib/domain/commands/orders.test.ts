@@ -4,9 +4,14 @@ import { onHand } from '../stock';
 import { apply } from '../world';
 import { context, customer, line, order, sku, T0, world } from '../testing';
 import {
+	addScreenshots,
 	advance,
 	advanceMany,
+	createDraft,
 	createOrder,
+	deleteDraft,
+	editLines,
+	removeScreenshot,
 	deleteOrder,
 	editOrder,
 	recordPayment,
@@ -28,6 +33,8 @@ const input = (over: Partial<NewOrder> = {}): NewOrder => ({
 	discount: 0,
 	notes: '',
 	paidWith: null,
+	screenshots: [],
+	fromDraft: null,
 	...over
 });
 
@@ -254,4 +261,75 @@ describe('deleteOrder', () => {
 		expect(w3.payments).toEqual([]);
 		expect(onHand(w3.movements).get('blank:oversized_200g/black/M')).toBe(1);
 	});
+});
+
+describe('quick orders (drafts)', () => {
+	const shot = { mime: 'image/webp' as const, data: 'UklGRg==' };
+
+	it('keeps screenshots and whatever else was typed', () => {
+		const w = run(world(), createDraft(world(), { name: ' Dea ', phone: '', note: 'oversize e zezë L?', screenshots: [shot, shot] }, context()));
+		expect(w.drafts).toEqual([{ id: 'id3', createdAt: T0, name: 'Dea', phone: '', note: 'oversize e zezë L?', screenshots: ['id1', 'id2'] }]);
+	});
+
+	it('needs something to go on', () =>
+		expect(createDraft(world(), { name: '', phone: ' ', note: '', screenshots: [] }, context()).ok).toBe(false));
+
+	it('completing it makes the order, carries the screenshots over and removes the draft', () => {
+		const w1 = run(world(), createDraft(world(), { name: 'Dea', phone: '', note: '', screenshots: [shot] }, context(T0, 'd')));
+		const w2 = run(w1, createOrder(w1, input({ fromDraft: w1.drafts[0].id, screenshots: [shot] }), context(T0, 'o')));
+		expect(w2.drafts).toEqual([]);
+		expect(w2.orders[0].screenshots).toEqual(['d1', 'o2']); // o1 is the order's line
+		expect(createOrder(w2, input({ fromDraft: 'd2' }), context()).ok).toBe(false); // already completed
+	});
+
+	it('deleting it deletes its screenshots', () => {
+		const w1 = run(world(), createDraft(world(), { name: 'x', phone: '', note: '', screenshots: [shot] }, context()));
+		expect(deleteDraft(w1, w1.drafts[0].id, context())).toEqual({ ok: true, value: [{ delete: 'draft', id: 'id2' }, { delete: 'image', id: 'id1' }] });
+	});
+});
+
+describe('screenshots on an order', () => {
+	const shot = { mime: 'image/png' as const, data: 'iVBORw==' };
+	it('adds more and removes one', () => {
+		const w0 = world({ orders: [order()] });
+		const w1 = run(w0, addScreenshots(w0, { orderId: 'O1', uploads: [shot, shot] }, context()));
+		expect(w1.orders[0].screenshots).toEqual(['id1', 'id2']);
+		const r = removeScreenshot(w1, { orderId: 'O1', imageId: 'id1' }, context());
+		expect(run(w1, r).orders[0].screenshots).toEqual(['id2']);
+		expect(r.ok && r.value).toContainEqual({ delete: 'image', id: 'id1' });
+	});
+	it('deleting the order deletes its screenshots', () => {
+		const r = deleteOrder(world({ orders: [order({ screenshots: ['s1'] })] }), 'O1', context());
+		expect(r.ok && r.value).toContainEqual({ delete: 'image', id: 's1' });
+	});
+});
+
+describe('editLines', () => {
+	const base = order({ lines: [line({ id: 'L1', quantity: 1, cost: { blank: 700, dtf: 300, labor: 0 } })] });
+	const same = { id: 'L1', sku: sku(), artwork: { kind: 'design' as const, designId: 'D1' }, quantity: 2, unitPrice: 2500 };
+
+	it('changes quantity and size, keeping the line and its cost snapshot', () => {
+		const w0 = world({ orders: [base] });
+		const w = run(w0, editLines(w0, { orderId: 'O1', lines: [{ ...same, sku: sku({ size: 'XL' }) }] }, context()));
+		expect(w.orders[0].lines).toEqual([{ ...base.lines[0], quantity: 2, sku: sku({ size: 'XL' }) }]);
+	});
+
+	it('prices a new or changed shirt at today’s cost', () => {
+		const w0 = world({ orders: [base] });
+		const w = run(w0, editLines(w0, { orderId: 'O1', lines: [same, { id: null, sku: sku({ color: 'white' }), artwork: { kind: 'none' }, quantity: 1, unitPrice: 2000 }] }, context()));
+		expect(w.orders[0].lines[1]).toMatchObject({ id: 'id1', cost: { blank: 800, dtf: 0, labor: 200 } });
+		expect(w.orders[0].lines[0].cost.blank).toBe(700);
+	});
+
+	it('keeps a personalised line’s mockups unless new ones come', () => {
+		const custom = order({ lines: [line({ id: 'C', artwork: { kind: 'custom', front: 'f', back: 'b', printReady: true } })] });
+		const w0 = world({ orders: [custom] });
+		const keep = editLines(w0, { orderId: 'O1', lines: [{ id: 'C', sku: sku(), artwork: { kind: 'custom', front: null, back: null }, quantity: 3, unitPrice: 3000 }] }, context());
+		expect(run(w0, keep).orders[0].lines[0].artwork).toEqual({ kind: 'custom', front: 'f', back: 'b', printReady: true });
+		const gone = editLines(w0, { orderId: 'O1', lines: [same] }, context());
+		expect(gone.ok && gone.value).toContainEqual({ delete: 'image', id: 'f' });
+	});
+
+	it('refuses once the order is made', () =>
+		expect(editLines(world({ orders: [{ ...base, status: 'ready', madeAt: T0 }] }), { orderId: 'O1', lines: [same] }, context()).ok).toBe(false));
 });

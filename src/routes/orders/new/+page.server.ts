@@ -1,15 +1,17 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { createOrder } from '$lib/domain/commands/orders';
+import { createOrder, deleteDraft } from '$lib/domain/commands/orders';
 import { blankCost } from '$lib/domain/economics';
 import { parseNewOrder } from '$lib/domain/forms';
 import { GARMENTS } from '$lib/domain/model';
-import { nextCode } from '$lib/domain/world';
+import { findDraft, nextCode } from '$lib/domain/world';
 import { context, load as world, readForm, run } from '$lib/server/shop';
 
 export const load = async (event) => {
 	const w = await world(event);
+	const draftId = event.url.searchParams.get('draft');
 	return {
 		code: nextCode(w.orders),
+		draft: draftId ? (findDraft(w, draftId) ?? null) : null,
 		// Enough of the world for the form to estimate costs exactly as the
 		// server will: prices, prints, and what a blank costs today.
 		costs: {
@@ -24,12 +26,19 @@ export const load = async (event) => {
 };
 
 export const actions = {
-	default: async (event) => {
+	create: async (event) => {
 		const input = parseNewOrder(await readForm(event.request));
 		if (!input.ok) return fail(400, { error: input.error });
 		const r = await run(event.locals.db, createOrder, input.value, context());
 		if (!r.ok) return fail(400, { error: r.error });
 		const created = r.value.find((c) => 'put' in c && c.put === 'order');
 		throw redirect(303, created && 'put' in created ? `/orders/${created.value.id}` : '/orders');
+	},
+	/** A quick order that won't become an order after all. */
+	deleteDraft: async (event) => {
+		const f = await readForm(event.request);
+		const r = await run(event.locals.db, deleteDraft, f.text('draftId'), context());
+		if (!r.ok) return fail(400, { error: r.error });
+		throw redirect(303, '/');
 	}
 };

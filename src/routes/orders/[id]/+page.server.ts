@@ -1,5 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { advance, deleteOrder, deletePayment, editOrder, recordPayment, setPrintReady } from '$lib/domain/commands/orders';
+import { addScreenshots, advance, deleteOrder, deletePayment, editOrder, recordPayment, removeScreenshot, setPrintReady } from '$lib/domain/commands/orders';
 import { parseEvent, parseOrderEdit, parsePayment } from '$lib/domain/forms';
 import { ok } from '$lib/domain/result';
 import { orderView } from '$lib/domain/views';
@@ -28,6 +28,8 @@ export const actions = {
 			return p.ok ? ok({ orderId: e.params.id, ...p.value }) : p;
 		}),
 	unpay: (e) => act(e, deletePayment, (f) => ok(f.text('paymentId'))),
+	addShots: (e) => act(e, addScreenshots, (f) => ok({ orderId: e.params.id, uploads: f.uploads('screenshot') })),
+	removeShot: (e) => act(e, removeScreenshot, (f) => ok({ orderId: e.params.id, imageId: f.text('imageId') })),
 	printReady: (e) =>
 		act(e, setPrintReady, (f) => ok({ orderId: e.params.id, lineId: f.text('lineId'), ready: f.text('ready') === '1' })),
 	delete: async (e) => {

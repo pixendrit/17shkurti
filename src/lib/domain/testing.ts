@@ -36,6 +36,7 @@ export const order = (over: Partial<Order> = {}): Order => ({
 	shippingCharged: 0,
 	discount: 0,
 	notes: '',
+	screenshots: [],
 	status: 'new',
 	stockTracked: true,
 	isDemo: false,

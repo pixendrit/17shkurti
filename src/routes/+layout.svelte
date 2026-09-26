@@ -15,6 +15,7 @@
 	import Ellipsis from '@lucide/svelte/icons/ellipsis';
 	import Lock from '@lucide/svelte/icons/lock';
 	import Download from '@lucide/svelte/icons/download';
+	import Zap from '@lucide/svelte/icons/zap';
 
 	let { children } = $props();
 
@@ -88,6 +89,7 @@
 			<Package class="size-5" />
 			<span class="text-sm font-semibold">Hijeshi Shqiptare</span>
 			<div class="ml-auto flex gap-1">
+				<a href="/orders/quick" aria-label="Porosi e shpejtë" class="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white"><Zap class="size-4" /> E shpejtë</a>
 				<a href="/api/backup" download aria-label="Kopje rezervë" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Download class="size-4" /></a>
 				<form method="POST" action="/logout">
 					<button aria-label="Kyç" class="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><Lock class="size-4" /></button>

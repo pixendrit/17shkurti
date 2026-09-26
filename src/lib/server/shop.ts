@@ -49,20 +49,24 @@ function base64(buf: ArrayBuffer): string {
  */
 export async function readForm(request: Request): Promise<Form> {
 	const data = await request.formData();
-	const uploads = new Map<string, Upload>();
+	const uploads = new Map<string, Upload[]>();
 	for (const [name, v] of data.entries())
 		if (typeof v !== 'string' && v.size > 0)
-			uploads.set(name, {
-				mime: ((IMAGE_MIMES as readonly string[]).includes(v.type) ? v.type : 'invalid') as Upload['mime'],
-				data: base64(await v.arrayBuffer())
-			});
+			uploads.set(name, [
+				...(uploads.get(name) ?? []),
+				{
+					mime: ((IMAGE_MIMES as readonly string[]).includes(v.type) ? v.type : 'invalid') as Upload['mime'],
+					data: base64(await v.arrayBuffer())
+				}
+			]);
 	return {
 		text: (n) => {
 			const v = data.get(n);
 			return typeof v === 'string' ? v : '';
 		},
 		list: (n) => data.getAll(n).filter((v): v is string => typeof v === 'string'),
-		upload: (n) => uploads.get(n) ?? null
+		upload: (n) => uploads.get(n)?.[0] ?? null,
+		uploads: (n) => uploads.get(n) ?? []
 	};
 }
 

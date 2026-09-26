@@ -12,6 +12,7 @@ import {
 	type Change,
 	type Customer,
 	type Design,
+	type Draft,
 	type Image,
 	type Movement,
 	type Order,
@@ -41,7 +42,10 @@ const READS = {
 	payments: 'SELECT * FROM payments ORDER BY received_at',
 	purchases: 'SELECT * FROM purchases ORDER BY date',
 	purchaseLines: 'SELECT * FROM purchase_lines ORDER BY purchase_id, position',
-	movements: 'SELECT * FROM stock_movements ORDER BY at, id'
+	movements: 'SELECT * FROM stock_movements ORDER BY at, id',
+	orderShots: 'SELECT * FROM order_screenshots ORDER BY order_id, position',
+	drafts: 'SELECT * FROM drafts ORDER BY created_at',
+	draftShots: 'SELECT * FROM draft_screenshots ORDER BY draft_id, position'
 } as const;
 
 /** loadWorld : D1 -> World — the whole shop, in one batched round trip. */
@@ -79,6 +83,13 @@ export function toWorld(r: Record<keyof typeof READS, Row[]>): World {
 		list.push(toLine(l));
 		linesByOrder.set(str(l.order_id), list);
 	}
+	const shots = (rows: Row[], key: string) => {
+		const m = new Map<string, string[]>();
+		for (const r of rows) m.set(str(r[key]), [...(m.get(str(r[key])) ?? []), str(r.image_id)]);
+		return m;
+	};
+	const orderShots = shots(r.orderShots, 'order_id');
+	const draftShots = shots(r.draftShots, 'draft_id');
 	const purchaseLines = new Map<string, Row[]>();
 	for (const l of r.purchaseLines) {
 		const list = purchaseLines.get(str(l.purchase_id)) ?? [];
@@ -117,7 +128,17 @@ export function toWorld(r: Record<keyof typeof READS, Row[]>): World {
 				back: p.back_image_id == null ? null : str(p.back_image_id)
 			})
 		),
-		orders: r.orders.map((o) => toOrder(o, linesByOrder.get(str(o.id)) ?? [])),
+		orders: r.orders.map((o) => toOrder(o, linesByOrder.get(str(o.id)) ?? [], orderShots.get(str(o.id)) ?? [])),
+		drafts: r.drafts.map(
+			(d): Draft => ({
+				id: str(d.id),
+				createdAt: num(d.created_at),
+				name: str(d.name),
+				phone: str(d.phone),
+				note: str(d.note),
+				screenshots: draftShots.get(str(d.id)) ?? []
+			})
+		),
 		payments: r.payments.map(
 			(p): Payment => ({
 				id: str(p.id),
@@ -169,7 +190,7 @@ function toLine(l: Row): OrderLine {
 	};
 }
 
-function toOrder(o: Row, lines: OrderLine[]): Order {
+function toOrder(o: Row, lines: OrderLine[], screenshots: string[]): Order {
 	const cost = num(o.delivery_cost_cents);
 	return {
 		id: str(o.id),
@@ -186,6 +207,7 @@ function toOrder(o: Row, lines: OrderLine[]): Order {
 		shippingCharged: num(o.shipping_charged_cents),
 		discount: num(o.discount_cents),
 		notes: str(o.notes),
+		screenshots,
 		status: str(o.status) as Order['status'],
 		stockTracked: bool(o.stock_tracked),
 		isDemo: bool(o.is_demo),
@@ -245,17 +267,25 @@ const COLS = {
 	payments: ['id', 'order_id', 'amount_cents', 'method', 'received_at'],
 	purchases: ['id', 'kind', 'date', 'note', 'is_demo', 'sheets', 'sheet_price_cents', 'category', 'amount_cents'],
 	purchase_lines: ['purchase_id', 'position', 'garment', 'color', 'size', 'print_id', 'quantity', 'unit_cost_cents'],
-	stock_movements: ['id', 'garment', 'color', 'size', 'print_id', 'delta', 'reason', 'note', 'order_id', 'purchase_id', 'at']
+	stock_movements: ['id', 'garment', 'color', 'size', 'print_id', 'delta', 'reason', 'note', 'order_id', 'purchase_id', 'at'],
+	order_screenshots: ['order_id', 'position', 'image_id'],
+	drafts: ['id', 'created_at', 'name', 'phone', 'note'],
+	draft_screenshots: ['draft_id', 'position', 'image_id']
 } as const satisfies Record<string, Columns>;
+
+/** Tables whose rows belong to a parent and are keyed by (parent, position): rewritten whole with it. */
+const OWNED = { purchase_lines: 'purchase_id', order_screenshots: 'order_id', draft_screenshots: 'draft_id' } as const;
+const keyOf = (table: Table): string[] => (table in OWNED ? [OWNED[table as keyof typeof OWNED], 'position'] : ['id']);
 
 type Table = keyof typeof COLS;
 
 /** The order puts are written in: a row only after what it points to. */
 const PUT_ORDER: Table[] = [
-	'images', 'customers', 'designs', 'prints', 'orders', 'order_lines', 'payments', 'purchases', 'purchase_lines', 'stock_movements'
+	'images', 'customers', 'designs', 'prints', 'orders', 'order_lines', 'order_screenshots', 'payments', 'purchases',
+	'purchase_lines', 'stock_movements', 'drafts', 'draft_screenshots'
 ];
 /** The order deletes are done in: a row before what it points to. */
-const DELETE_ORDER: Table[] = ['payments', 'stock_movements', 'orders', 'customers', 'purchases', 'prints', 'designs', 'images'];
+const DELETE_ORDER: Table[] = ['payments', 'stock_movements', 'orders', 'drafts', 'customers', 'purchases', 'prints', 'designs', 'images'];
 
 const DELETE_TABLE: Record<Extract<Change, { delete: string }>['delete'], Table> = {
 	order: 'orders',
@@ -265,7 +295,8 @@ const DELETE_TABLE: Record<Extract<Change, { delete: string }>['delete'], Table>
 	image: 'images',
 	design: 'designs',
 	print: 'prints',
-	customer: 'customers'
+	customer: 'customers',
+	draft: 'drafts'
 };
 
 const b = (v: boolean) => (v ? 1 : 0);
@@ -309,7 +340,15 @@ function rowsOf(c: Extract<Change, { put: string }>): [Table, Value[]][] {
 						a.kind === 'custom' ? b(a.printReady) : 0,
 						l.quantity, l.unitPrice, l.cost.blank, l.cost.dtf, l.cost.labor
 					]];
-				})
+				}),
+				...o.screenshots.map((id, i): [Table, Value[]] => ['order_screenshots', [o.id, i, id]])
+			];
+		}
+		case 'draft': {
+			const d = c.value;
+			return [
+				['drafts', [d.id, d.createdAt, d.name, d.phone, d.note]],
+				...d.screenshots.map((id, i): [Table, Value[]] => ['draft_screenshots', [d.id, i, id]])
 			];
 		}
 		case 'payment': {
@@ -360,7 +399,7 @@ const chunk = <X>(xs: X[], n: number): X[][] =>
  */
 function upserts(table: Table, rows: Value[][]): [string, Value[]][] {
 	const cols = COLS[table];
-	const key = table === 'purchase_lines' ? ['purchase_id', 'position'] : ['id'];
+	const key = keyOf(table);
 	const set = cols.filter((c) => !key.includes(c)).map((c) => `${c} = excluded.${c}`).join(', ');
 	// A picture is up to ~1 MB of data: one per statement keeps each request small.
 	const perStatement = table === 'images' ? 1 : Math.floor(MAX_PARAMS / cols.length);
@@ -376,18 +415,22 @@ export function statements(changes: readonly Change[]): [string, Value[]][] {
 	const puts = new Map<Table, Map<string, Value[]>>();
 	const deletes = new Map<Table, Set<string>>();
 	const linesOf = new Map<string, string[]>(); // order id -> its line ids
-	const purchasesPut: string[] = [];
+	// Parents whose owned rows (purchase lines, screenshots) are rewritten whole.
+	const rewritten = new Map<keyof typeof OWNED, string[]>();
+	const own = (t: keyof typeof OWNED, id: string) => rewritten.set(t, [...(rewritten.get(t) ?? []), id]);
 	let settings: Settings | null = null;
 
 	for (const c of changes) {
 		if ('put' in c) {
 			if (c.put === 'settings') settings = c.value;
 			if (c.put === 'order') linesOf.set(c.value.id, c.value.lines.map((l) => l.id));
-			if (c.put === 'purchase') purchasesPut.push(c.value.id);
+			if (c.put === 'purchase') own('purchase_lines', c.value.id);
+			if (c.put === 'order') own('order_screenshots', c.value.id);
+			if (c.put === 'draft') own('draft_screenshots', c.value.id);
 			for (const [table, row] of rowsOf(c)) {
 				const m = puts.get(table) ?? new Map<string, Value[]>();
 				// The last put of a record wins, as it would written one by one.
-				m.set(table === 'purchase_lines' ? `${row[0]}:${row[1]}` : String(row[0]), row);
+				m.set(table in OWNED ? `${row[0]}:${row[1]}` : String(row[0]), row);
 				puts.set(table, m);
 			}
 		} else {
@@ -399,9 +442,10 @@ export function statements(changes: readonly Change[]): [string, Value[]][] {
 	}
 
 	const out: [string, Value[]][] = [];
-	// A purchase's lines are rewritten whole.
-	for (const ids of chunk(purchasesPut, MAX_PARAMS))
-		out.push([`DELETE FROM purchase_lines WHERE purchase_id IN (${ids.map(() => '?').join(', ')})`, ids]);
+	// Owned rows are rewritten whole: cleared first, then put back as given.
+	for (const [table, parents] of rewritten)
+		for (const ids of chunk(parents, MAX_PARAMS))
+			out.push([`DELETE FROM ${table} WHERE ${OWNED[table]} IN (${ids.map(() => '?').join(', ')})`, ids]);
 	for (const table of PUT_ORDER) {
 		const rows = puts.get(table);
 		if (rows) out.push(...upserts(table, [...rows.values()]));

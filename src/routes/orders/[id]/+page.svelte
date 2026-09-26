@@ -19,6 +19,8 @@
 	import Gift from '@lucide/svelte/icons/gift';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import X from '@lucide/svelte/icons/x';
+	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import ScreenshotPicker from '$lib/components/ScreenshotPicker.svelte';
 
 	let { data } = $props();
 	const o = $derived(data.order);
@@ -150,7 +152,12 @@
 		{/if}
 
 		<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
-			<header class="border-b border-slate-100 px-4 py-3"><h2 class="text-sm font-semibold text-slate-900">Artikujt</h2></header>
+			<header class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+				<h2 class="text-sm font-semibold text-slate-900">Artikujt</h2>
+				{#if data.editableLines}
+					<a href="/orders/{o.id}/items" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-medium hover:bg-slate-50"><Pencil class="size-3.5" /> Ndrysho artikujt</a>
+				{/if}
+			</header>
 			<div class="divide-y divide-slate-100">
 				{#each data.lines as { line: l, label: text, printName, images } (l.id)}
 					<div class="px-4 py-3">
@@ -203,6 +210,35 @@
 					<span class="tabular">{money(o.kind === 'gift' ? e.cost : e.profit)}</span>
 				</div>
 				{#if o.status === 'cancelled'}<p class="text-xs text-slate-400">E anuluar: nuk llogaritet në statistika.</p>{/if}
+			</div>
+		</section>
+
+		<section class="rounded-xl border border-slate-200 bg-white shadow-sm">
+			<header class="flex items-center gap-2 border-b border-slate-100 px-4 py-3">
+				<MessageSquare class="size-4 text-slate-500" />
+				<h2 class="text-sm font-semibold text-slate-900">Biseda</h2>
+				<span class="ml-auto text-xs text-slate-400">{o.screenshots.length}</span>
+			</header>
+			<div class="space-y-3 p-4">
+				{#if o.screenshots.length}
+					<div class="flex gap-2 overflow-x-auto pb-1">
+						{#each o.screenshots as id, i (id)}
+							<div class="relative shrink-0">
+								<a href={imageUrl(id)} target="_blank"><img src={imageUrl(id)} alt="Screenshot {i + 1}" loading="lazy" class="h-64 rounded-lg border border-slate-200 object-contain" /></a>
+								<form method="POST" action="?/removeShot" use:enhance={busy({ confirm: 'Ta heq këtë screenshot?' })} class="absolute right-1 top-1">
+									<input type="hidden" name="imageId" value={id} />
+									<button aria-label="Hiq screenshot-in {i + 1}" class="rounded-full bg-slate-900/80 p-1 text-white hover:bg-red-600"><X class="size-3.5" /></button>
+								</form>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<p class="text-sm text-slate-500">Asnjë screenshot i bisedës.</p>
+				{/if}
+				<form method="POST" action="?/addShots" enctype="multipart/form-data" use:enhance={busy()} class="space-y-2">
+					<ScreenshotPicker label="Shto screenshot" />
+					<button class="{secondary} w-full">Ruaj screenshot-et</button>
+				</form>
 			</div>
 		</section>
 
