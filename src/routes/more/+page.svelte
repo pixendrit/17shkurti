@@ -2,6 +2,7 @@
 	import ChartLine from '@lucide/svelte/icons/chart-line';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Users from '@lucide/svelte/icons/users';
+	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import Palette from '@lucide/svelte/icons/palette';
 	import Settings from '@lucide/svelte/icons/settings';
 	import Download from '@lucide/svelte/icons/download';
@@ -11,6 +12,7 @@
 	const links = [
 		{ href: '/stats', label: 'Statistika', hint: 'Fitimi, burimet, shtetet', icon: ChartLine },
 		{ href: '/purchases', label: 'Blerjet', hint: 'Bluza, fletë DTF, shpenzime', icon: Receipt },
+		{ href: '/followups', label: 'Njofto klientët', hint: 'Gati, u nis, u dorëzua: mesazhet', icon: MessageCircle },
 		{ href: '/customers', label: 'Klientët', hint: 'Kush blen, sa shpesh', icon: Users },
 		{ href: '/designs', label: 'Dizajnet', hint: 'Fotot para dhe pas', icon: Palette },
 		{ href: '/settings', label: 'Cilësimet', hint: 'Kostot dhe çmimet', icon: Settings }

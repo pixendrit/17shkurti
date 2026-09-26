@@ -113,6 +113,16 @@ that stays the same shirt keeps its cost snapshot; a new or changed one
 costs what it costs today. Once made, its shirts came off the shelf and
 stay.
 
+### Keeping clients informed
+```
+FollowUp = 'ready' | 'shipped' | 'delivered'
+Order.notified: FollowUp → Instant      // when the client was told
+Settings.messages: FollowUp → template  // with {emri}, {kodi}, {bluzat}, …
+```
+The step due is the order's current one (ready → ready, with_courier →
+shipped, delivered → delivered) until the client is told. Only the current
+step counts: an order that jumped to delivered only needs its thanks.
+
 ### Status and events (the order process)
 ```
 Status = 'new' | 'in_production' | 'ready' | 'with_courier'

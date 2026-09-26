@@ -2,10 +2,13 @@ import { advanceMany, settle } from '$lib/domain/commands/orders';
 import { parseEvent } from '$lib/domain/forms';
 import { PAYMENT_METHODS, type PaymentMethod } from '$lib/domain/model';
 import { ok } from '$lib/domain/result';
-import { shipmentsView } from '$lib/domain/views';
+import { followUpsView, shipmentsView } from '$lib/domain/views';
 import { act, load as world } from '$lib/server/shop';
 
-export const load = async (event) => shipmentsView(await world(event));
+export const load = async (event) => {
+	const w = await world(event);
+	return { ...shipmentsView(w), toNotify: followUpsView(w).length };
+};
 
 export const actions = {
 	advance: (e) =>

@@ -6,8 +6,10 @@ import { balance, blankCost, economics, paid, purchaseTotal } from './economics'
 import { sum } from './money';
 import {
 	COLORS,
+	FOLLOW_UPS,
 	GARMENTS,
 	SIZES,
+	type FollowUp,
 	type Customer,
 	type Id,
 	type Order,
@@ -18,21 +20,14 @@ import {
 import { COLOR_LABELS, EXPENSE_LABELS, GARMENT_LABELS, printLabel, skuLabel, statusLabel, subjectLabel } from './labels';
 import { isOpen, isUnmade, possibleEvents } from './process';
 import { outstanding, financials } from './stats';
+import { dueFollowUp, message, whatsappNumber } from './followup';
 import { allocate, customPending, shelf, subjectKey, type Need } from './stock';
 import type { Instant } from './time';
 
 // ---- Orders -------------------------------------------------------------------
 
-/** lineLabel : World OrderLine -> String — "2 × Shqiponja · Oversized 200gr · E zezë · L" */
-export function lineLabel(w: World, l: OrderLine): string {
-	const art =
-		l.artwork.kind === 'print'
-			? (w.designs.find((d) => d.id === w.prints.find((p) => p.id === (l.artwork as { printId: Id }).printId)?.designId)?.name ?? 'Print')
-			: l.artwork.kind === 'custom'
-				? 'I personalizuar'
-				: 'Pa print';
-	return `${l.quantity} × ${art} · ${skuLabel(l.sku)}`;
-}
+export { lineLabel } from './labels';
+import { lineLabel } from './labels';
 
 /** OrderRow: an order as one line of a list. */
 export type OrderRow = ReturnType<typeof orderRow>;
@@ -148,6 +143,7 @@ export function orderView(w: World, id: Id) {
 		balance: balance(o, w.payments),
 		events: possibleEvents(o),
 		editableLines: isUnmade(o),
+		followUp: orderFollowUps(w, o),
 		readiness: readiness && {
 			ready: readiness.ready,
 			customPending: readiness.customPending,
@@ -173,6 +169,7 @@ export function dashboardView(w: World, now: Instant) {
 	const s30 = financials(w, 30, now);
 	return {
 		drafts: draftsView(w),
+		followUps: followUpsView(w),
 		openCount: w.orders.filter(isOpen).length,
 		newCount: w.orders.filter((o) => o.status === 'new').length,
 		canMake: unmade.filter((o) => plan.get(o.id)?.ready).map(row),
@@ -383,3 +380,45 @@ export const draftsView = (w: World) =>
 	[...w.drafts]
 		.sort((a, b) => a.createdAt - b.createdAt)
 		.map((d) => ({ ...d, cover: d.screenshots[0] ?? null, count: d.screenshots.length }));
+
+// ---- Keeping clients informed ----------------------------------------------------
+
+/** since : Order FollowUp -> Instant — when the order reached that step. */
+const reachedAt = (o: Order, stage: FollowUp): Instant | null =>
+	stage === 'ready' ? o.madeAt : stage === 'shipped' ? o.handedOverAt : o.deliveredAt;
+
+/**
+ * followUpsView : World -> the clients to tell something, longest waiting first,
+ * each with the message ready to send
+ */
+export function followUpsView(w: World) {
+	const customers = customerMap(w);
+	return w.orders
+		.map((o) => ({ o, stage: dueFollowUp(o) }))
+		.filter((x): x is { o: Order; stage: FollowUp } => x.stage != null)
+		.map(({ o, stage }) => {
+			const c = customers.get(o.customerId) ?? null;
+			return {
+				...orderRow(w, o, customers),
+				stage,
+				since: reachedAt(o, stage) ?? o.createdAt,
+				message: message(w, o, c, stage),
+				whatsapp: c ? whatsappNumber(c.phone, c.country) : null
+			};
+		})
+		.sort((a, b) => a.since - b.since);
+}
+
+export type FollowUpRow = ReturnType<typeof followUpsView>[number];
+
+/** orderFollowUps : World Order -> each step: reached or not, told or not, and the message */
+export function orderFollowUps(w: World, o: Order) {
+	const c = w.customers.find((x) => x.id === o.customerId) ?? null;
+	const due = dueFollowUp(o);
+	return {
+		due,
+		whatsapp: c ? whatsappNumber(c.phone, c.country) : null,
+		message: due ? message(w, o, c, due) : null,
+		steps: FOLLOW_UPS.map((stage) => ({ stage, reachedAt: reachedAt(o, stage), notifiedAt: o.notified[stage] ?? null }))
+	};
+}

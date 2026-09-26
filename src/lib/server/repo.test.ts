@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addScreenshots, advance, createDraft, createOrder, deleteDraft, deleteOrder, editLines, recordPayment, removeScreenshot, setPrintReady } from '$lib/domain/commands/orders';
+import { addScreenshots, advance, createDraft, createOrder, deleteDraft, deleteOrder, editLines, recordPayment, removeScreenshot, setNotified, setPrintReady } from '$lib/domain/commands/orders';
 import { createDesign, setPrintImage } from '$lib/domain/commands/catalog';
 import { clearDemo, countStock, deletePurchase, recordPurchase, saveSettings } from '$lib/domain/commands/stock';
 import { DEFAULT_SETTINGS, emptyWorld, type Change, type World } from '$lib/domain/model';
@@ -103,9 +103,11 @@ describe('repository', () => {
 		w = await roundTrip(db, w, countStock(w, { subject: blank(sku({ size: 'L' })), count: 1, note: 'numërim' }, ctx()));
 		w = await roundTrip(db, w, advance(w, { orderId: o.id, event: 'make' }, ctx(120)));
 		w = await roundTrip(db, w, advance(w, { orderId: o.id, event: 'hand_over' }, ctx(180)));
+		w = await roundTrip(db, w, setNotified(w, { orderId: o.id, stage: 'shipped', done: true }, ctx(190)));
+		expect(w.orders[0].notified).toEqual({ shipped: T0 + 190 });
 		w = await roundTrip(db, w, advance(w, { orderId: o.id, event: 'deliver' }, ctx(240)));
 		w = await roundTrip(db, w, recordPayment(w, { orderId: o.id, amount: null, method: 'cod', receivedAt: null }, ctx(300)));
-		w = await roundTrip(db, w, saveSettings(w, { ...DEFAULT_SETTINGS, sheetPrice: 1300, courierCost: { ...DEFAULT_SETTINGS.courierCost, AL: 450 } }, ctx()));
+		w = await roundTrip(db, w, saveSettings(w, { ...DEFAULT_SETTINGS, sheetPrice: 1300, messages: { ...DEFAULT_SETTINGS.messages, ready: 'Gati, {emri}!' }, courierCost: { ...DEFAULT_SETTINGS.courierCost, AL: 450 } }, ctx()));
 
 		expect(w.orders[0]).toMatchObject({ status: 'delivered', delivery: { cost: 250 } });
 		expect(w.payments[0].amount).toBe(8000);

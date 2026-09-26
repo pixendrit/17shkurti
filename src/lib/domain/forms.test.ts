@@ -145,7 +145,8 @@ describe('parseSettings', () => {
 			'courier-XK': '2,50',
 			'courier-AL': '5',
 			'courier-MK': '5',
-			'courier-OTHER': '5'
+			'courier-OTHER': '5',
+			...Object.fromEntries(Object.entries(DEFAULT_SETTINGS.messages).map(([k, v]) => [`message-${k}`, v]))
 		});
 		expect(parseSettings(f)).toEqual({ ok: true, value: DEFAULT_SETTINGS });
 	});

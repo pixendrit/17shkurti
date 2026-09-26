@@ -154,6 +154,8 @@ export type Order = {
 	notes: string;
 	/** Screenshots of the conversation the order came from, in order. */
 	screenshots: Id[];
+	/** When the client was told of each step they've been told of. */
+	notified: Partial<Record<FollowUp, Instant>>;
 	status: Status;
 	/**
 	 * Whether making it takes stock from the ledger. False for orders made
@@ -168,6 +170,15 @@ export type Order = {
 	returnedAt: Instant | null;
 	cancelledAt: Instant | null;
 };
+
+export const FOLLOW_UPS = ['ready', 'shipped', 'delivered'] as const;
+/**
+ * FollowUp: a step the client is told about.
+ *   ready:     their shirts are made
+ *   shipped:   the parcel is with the courier
+ *   delivered: it arrived: thank them, ask for a tag
+ */
+export type FollowUp = (typeof FOLLOW_UPS)[number];
 
 /**
  * Draft: an order caught in a hurry: screenshots of the conversation and
@@ -258,6 +269,7 @@ export type Settings = {
 	packagingPerOrder: Cents; // bag or mailer, per parcel
 	blankCost: Record<Garment, Cents>; // until blanks are bought through the app
 	courierCost: Record<Country, Cents>; // what the courier charges the shop
+	messages: Record<FollowUp, string>; // what the client is sent at each step
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -267,7 +279,12 @@ export const DEFAULT_SETTINGS: Settings = {
 	laborPerShirt: 200,
 	packagingPerOrder: 12,
 	blankCost: { oversized_200g: 800, regular_fit: 800 },
-	courierCost: { XK: 250, AL: 500, MK: 500, OTHER: 500 }
+	courierCost: { XK: 250, AL: 500, MK: 500, OTHER: 500 },
+	messages: {
+		ready: 'Përshëndetje {emri}! Porosia juaj {kodi} ({bluzat}) është gati. Për pagesë: {per_pagese}. Faleminderit që zgjodhët Hijeshi Shqiptare!',
+		shipped: 'Përshëndetje {emri}! Porosia juaj {kodi} u nis me postë sot. Nr. i dërgesës: {nr_dergeses}. Arrin brenda 1–3 ditësh; pagesa në dorëzim: {per_pagese}. Faleminderit!',
+		delivered: 'Përshëndetje {emri}! Shpresojmë që bluza t’ju pëlqejë 🇦🇱 Na bëni tag në Instagram kur ta vishni. Faleminderit që zgjodhët Hijeshi Shqiptare!'
+	}
 };
 
 // ---- The world and changes to it -------------------------------------------

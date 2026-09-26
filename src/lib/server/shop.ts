@@ -5,7 +5,8 @@
 import { fail as httpFail, type RequestEvent } from '@sveltejs/kit';
 import type { Command } from '$lib/domain/commands/common';
 import type { Form } from '$lib/domain/forms';
-import type { Change, Context, Upload, World } from '$lib/domain/model';
+import type { Change, Context, FollowUp, Upload, World } from '$lib/domain/model';
+import { setNotified } from '$lib/domain/commands/orders';
 import { IMAGE_MIMES } from '$lib/domain/model';
 import { fail, ok, type Result } from '$lib/domain/result';
 import { commit, loadWorld } from './repo';
@@ -93,3 +94,13 @@ export const need = (f: Form, name: string): Result<string> => (f.text(name) ? o
 
 /** load : RequestEvent -> World — the world for a page, in one round trip. */
 export const load = (event: Pick<RequestEvent, 'locals'>): Promise<World> => loadWorld(event.locals.db);
+
+/**
+ * notify : RequestEvent -> ActionResult
+ * The "client told" action, shared by every page that shows follow-ups:
+ * orderId, stage, and done ("0" takes it back).
+ */
+export const notify = (event: RequestEvent) =>
+	act(event, setNotified, (f) =>
+		ok({ orderId: f.text('orderId'), stage: f.text('stage') as FollowUp, done: f.text('done') !== '0' })
+	);

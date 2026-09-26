@@ -9,7 +9,7 @@
 	import { CHANNELS, COUNTRIES, PAYMENT_METHODS } from '$lib/domain/model';
 	import {
 		money, formatDate, formatDateTime, dayInput, imageUrl, field, label, primary, secondary,
-		CHANNEL_LABELS, COUNTRY_LABELS, DELIVERY_LABELS, EVENT_LABELS, KIND_LABELS, PAYMENT_LABELS, REASON_LABELS
+		CHANNEL_LABELS, COUNTRY_LABELS, DELIVERY_LABELS, EVENT_LABELS, FOLLOW_UP_LABELS, KIND_LABELS, PAYMENT_LABELS, REASON_LABELS
 	} from '$lib/ui';
 	import Phone from '@lucide/svelte/icons/phone';
 	import MapPin from '@lucide/svelte/icons/map-pin';
@@ -20,6 +20,8 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import X from '@lucide/svelte/icons/x';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
+	import MessageCircle from '@lucide/svelte/icons/message-circle';
+	import FollowUpItem from '$lib/components/FollowUpItem.svelte';
 	import ScreenshotPicker from '$lib/components/ScreenshotPicker.svelte';
 
 	let { data } = $props();
@@ -286,6 +288,37 @@
 			<ul class="mt-3 space-y-0.5 border-t border-slate-100 pt-2 text-xs text-slate-500">
 				{#each timeline as [what, at] (what)}<li class="flex justify-between"><span>{what}</span><span>{formatDateTime(at)}</span></li>{/each}
 			</ul>
+		</section>
+
+		<section class="rounded-xl border {data.followUp.due ? 'border-emerald-300' : 'border-slate-200'} bg-white shadow-sm">
+			<h2 class="flex items-center gap-1.5 px-4 pt-4 text-sm font-semibold text-slate-900"><MessageCircle class="size-4 text-slate-500" /> Njoftimet për klientin</h2>
+			<ul class="space-y-1.5 px-4 py-3 text-sm">
+				{#each data.followUp.steps as s (s.stage)}
+					<li class="flex items-center gap-2">
+						{#if s.notifiedAt}
+							<CircleCheck class="size-4 shrink-0 text-emerald-600" />
+							<span class="flex-1">{FOLLOW_UP_LABELS[s.stage]} <span class="text-xs text-slate-500">· u njoftua {formatDateTime(s.notifiedAt)}</span></span>
+							<form method="POST" action="?/notify" use:enhance={busy()}>
+								<input type="hidden" name="orderId" value={o.id} />
+								<input type="hidden" name="stage" value={s.stage} />
+								<input type="hidden" name="done" value="0" />
+								<button class="text-[11px] text-slate-400 hover:text-slate-700 hover:underline">zhbëj</button>
+							</form>
+						{:else if s.stage === data.followUp.due}
+							<span class="size-4 shrink-0 rounded-full border-2 border-emerald-500"></span>
+							<span class="flex-1 font-medium text-emerald-800">{FOLLOW_UP_LABELS[s.stage]}: duhet njoftuar</span>
+						{:else}
+							<span class="size-4 shrink-0 rounded-full border-2 border-slate-200"></span>
+							<span class="flex-1 text-slate-400">{FOLLOW_UP_LABELS[s.stage]}{s.reachedAt ? '' : ': ende jo'}</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+			{#if data.followUp.due && data.followUp.message}
+				<div class="border-t border-slate-100">
+					<FollowUpItem orderId={o.id} code={o.code} customer={c?.name ?? ''} stage={data.followUp.due} since={data.followUp.steps.find((s) => s.stage === data.followUp.due)?.reachedAt ?? o.createdAt} message={data.followUp.message} whatsapp={data.followUp.whatsapp} showOrder={false} />
+				</div>
+			{/if}
 		</section>
 
 		{#if o.kind === 'sale'}

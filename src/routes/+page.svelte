@@ -2,6 +2,9 @@
 	import StatTile from '$lib/components/StatTile.svelte';
 	import OrderList from '$lib/components/OrderList.svelte';
 	import DraftList from '$lib/components/DraftList.svelte';
+	import FollowUpItem from '$lib/components/FollowUpItem.svelte';
+	import FormError from '$lib/components/FormError.svelte';
+	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import Zap from '@lucide/svelte/icons/zap';
 	import { money, plural } from '$lib/ui';
 	import Plus from '@lucide/svelte/icons/plus';
@@ -37,6 +40,22 @@
 </div>
 
 <DraftList drafts={data.drafts} />
+
+{#if data.followUps.length}
+	<section class="mb-4 rounded-xl border border-emerald-300 bg-white shadow-sm">
+		<header class="flex items-center gap-2 border-b border-emerald-200 bg-emerald-50 px-4 py-3">
+			<MessageCircle class="size-4 text-emerald-700" />
+			<h2 class="text-sm font-semibold text-emerald-950">Njofto klientët</h2>
+			<a href="/followups" class="ml-auto text-xs font-medium text-emerald-800 underline">{data.followUps.length > 3 ? `Të gjitha (${data.followUps.length})` : 'Hap listën'}</a>
+		</header>
+		<FormError />
+		<div class="divide-y divide-slate-100">
+			{#each data.followUps.slice(0, 3) as r (r.id + r.stage)}
+				<FollowUpItem orderId={r.id} code={r.code} customer={r.customer} stage={r.stage} since={r.since} message={r.message} whatsapp={r.whatsapp} />
+			{/each}
+		</div>
+	</section>
+{/if}
 
 <div class="mb-4 grid grid-cols-3 gap-3">
 	<StatTile label="Të ardhurat (30 ditë)" value={money(data.revenue30)} />

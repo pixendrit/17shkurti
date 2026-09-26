@@ -8,7 +8,9 @@
  */
 import {
 	COUNTRIES,
+	FOLLOW_UPS,
 	GARMENTS,
+	type FollowUp,
 	type Change,
 	type Customer,
 	type Design,
@@ -44,6 +46,8 @@ const READS = {
 	purchaseLines: 'SELECT * FROM purchase_lines ORDER BY purchase_id, position',
 	movements: 'SELECT * FROM stock_movements ORDER BY at, id',
 	orderShots: 'SELECT * FROM order_screenshots ORDER BY order_id, position',
+	notifications: 'SELECT * FROM order_notifications',
+	messages: 'SELECT * FROM message_templates',
 	drafts: 'SELECT * FROM drafts ORDER BY created_at',
 	draftShots: 'SELECT * FROM draft_screenshots ORDER BY draft_id, position'
 } as const;
@@ -74,8 +78,15 @@ export function toWorld(r: Record<keyof typeof READS, Row[]>): World {
 		laborPerShirt: num(s.labor_per_shirt_cents),
 		packagingPerOrder: num(s.packaging_per_order_cents),
 		blankCost: Object.fromEntries(GARMENTS.map((g) => [g, num(r.garmentCosts.find((x) => x.garment === g)?.blank_cost_cents ?? 0)])) as Settings['blankCost'],
-		courierCost: Object.fromEntries(COUNTRIES.map((c) => [c, num(r.courierCosts.find((x) => x.country === c)?.cost_cents ?? 0)])) as Settings['courierCost']
+		courierCost: Object.fromEntries(COUNTRIES.map((c) => [c, num(r.courierCosts.find((x) => x.country === c)?.cost_cents ?? 0)])) as Settings['courierCost'],
+		messages: Object.fromEntries(FOLLOW_UPS.map((k) => [k, str(r.messages.find((x) => x.stage === k)?.body)])) as Settings['messages']
 	};
+	const notified = new Map<string, Order['notified']>();
+	for (const n of r.notifications) {
+		const m = notified.get(str(n.order_id)) ?? {};
+		m[str(n.stage) as FollowUp] = num(n.at);
+		notified.set(str(n.order_id), m);
+	}
 
 	const linesByOrder = new Map<string, OrderLine[]>();
 	for (const l of r.lines) {
@@ -128,7 +139,7 @@ export function toWorld(r: Record<keyof typeof READS, Row[]>): World {
 				back: p.back_image_id == null ? null : str(p.back_image_id)
 			})
 		),
-		orders: r.orders.map((o) => toOrder(o, linesByOrder.get(str(o.id)) ?? [], orderShots.get(str(o.id)) ?? [])),
+		orders: r.orders.map((o) => ({ ...toOrder(o, linesByOrder.get(str(o.id)) ?? [], orderShots.get(str(o.id)) ?? []), notified: notified.get(str(o.id)) ?? {} })),
 		drafts: r.drafts.map(
 			(d): Draft => ({
 				id: str(d.id),
@@ -208,6 +219,7 @@ function toOrder(o: Row, lines: OrderLine[], screenshots: string[]): Order {
 		discount: num(o.discount_cents),
 		notes: str(o.notes),
 		screenshots,
+		notified: {},
 		status: str(o.status) as Order['status'],
 		stockTracked: bool(o.stock_tracked),
 		isDemo: bool(o.is_demo),
@@ -269,19 +281,25 @@ const COLS = {
 	purchase_lines: ['purchase_id', 'position', 'garment', 'color', 'size', 'print_id', 'quantity', 'unit_cost_cents'],
 	stock_movements: ['id', 'garment', 'color', 'size', 'print_id', 'delta', 'reason', 'note', 'order_id', 'purchase_id', 'at'],
 	order_screenshots: ['order_id', 'position', 'image_id'],
+	order_notifications: ['order_id', 'stage', 'at'],
 	drafts: ['id', 'created_at', 'name', 'phone', 'note'],
 	draft_screenshots: ['draft_id', 'position', 'image_id']
 } as const satisfies Record<string, Columns>;
 
 /** Tables whose rows belong to a parent and are keyed by (parent, position): rewritten whole with it. */
-const OWNED = { purchase_lines: 'purchase_id', order_screenshots: 'order_id', draft_screenshots: 'draft_id' } as const;
-const keyOf = (table: Table): string[] => (table in OWNED ? [OWNED[table as keyof typeof OWNED], 'position'] : ['id']);
+const OWNED = {
+	purchase_lines: ['purchase_id', 'position'],
+	order_screenshots: ['order_id', 'position'],
+	order_notifications: ['order_id', 'stage'],
+	draft_screenshots: ['draft_id', 'position']
+} as const;
+const keyOf = (table: Table): readonly string[] => (table in OWNED ? OWNED[table as keyof typeof OWNED] : ['id']);
 
 type Table = keyof typeof COLS;
 
 /** The order puts are written in: a row only after what it points to. */
 const PUT_ORDER: Table[] = [
-	'images', 'customers', 'designs', 'prints', 'orders', 'order_lines', 'order_screenshots', 'payments', 'purchases',
+	'images', 'customers', 'designs', 'prints', 'orders', 'order_lines', 'order_screenshots', 'order_notifications', 'payments', 'purchases',
 	'purchase_lines', 'stock_movements', 'drafts', 'draft_screenshots'
 ];
 /** The order deletes are done in: a row before what it points to. */
@@ -341,7 +359,8 @@ function rowsOf(c: Extract<Change, { put: string }>): [Table, Value[]][] {
 						l.quantity, l.unitPrice, l.cost.blank, l.cost.dtf, l.cost.labor
 					]];
 				}),
-				...o.screenshots.map((id, i): [Table, Value[]] => ['order_screenshots', [o.id, i, id]])
+				...o.screenshots.map((id, i): [Table, Value[]] => ['order_screenshots', [o.id, i, id]]),
+				...FOLLOW_UPS.filter((k) => o.notified[k] != null).map((k): [Table, Value[]] => ['order_notifications', [o.id, k, o.notified[k]!]])
 			];
 		}
 		case 'draft': {
@@ -425,7 +444,7 @@ export function statements(changes: readonly Change[]): [string, Value[]][] {
 			if (c.put === 'settings') settings = c.value;
 			if (c.put === 'order') linesOf.set(c.value.id, c.value.lines.map((l) => l.id));
 			if (c.put === 'purchase') own('purchase_lines', c.value.id);
-			if (c.put === 'order') own('order_screenshots', c.value.id);
+			if (c.put === 'order') own('order_screenshots', c.value.id), own('order_notifications', c.value.id);
 			if (c.put === 'draft') own('draft_screenshots', c.value.id);
 			for (const [table, row] of rowsOf(c)) {
 				const m = puts.get(table) ?? new Map<string, Value[]>();
@@ -445,7 +464,7 @@ export function statements(changes: readonly Change[]): [string, Value[]][] {
 	// Owned rows are rewritten whole: cleared first, then put back as given.
 	for (const [table, parents] of rewritten)
 		for (const ids of chunk(parents, MAX_PARAMS))
-			out.push([`DELETE FROM ${table} WHERE ${OWNED[table]} IN (${ids.map(() => '?').join(', ')})`, ids]);
+			out.push([`DELETE FROM ${table} WHERE ${OWNED[table][0]} IN (${ids.map(() => '?').join(', ')})`, ids]);
 	for (const table of PUT_ORDER) {
 		const rows = puts.get(table);
 		if (rows) out.push(...upserts(table, [...rows.values()]));
@@ -480,6 +499,10 @@ function settingsStatements(s: Settings): [string, Value[]][] {
 		[
 			`INSERT INTO courier_costs (country, cost_cents) VALUES ${COUNTRIES.map(() => '(?, ?)').join(', ')} ON CONFLICT (country) DO UPDATE SET cost_cents = excluded.cost_cents`,
 			COUNTRIES.flatMap((c) => [c, s.courierCost[c]])
+		],
+		[
+			`INSERT INTO message_templates (stage, body) VALUES ${FOLLOW_UPS.map(() => '(?, ?)').join(', ')} ON CONFLICT (stage) DO UPDATE SET body = excluded.body`,
+			FOLLOW_UPS.flatMap((k) => [k, s.messages[k]])
 		]
 	];
 }

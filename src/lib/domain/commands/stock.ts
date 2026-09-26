@@ -6,6 +6,7 @@ import type { Cents } from '../money';
 import {
 	COUNTRIES,
 	EXPENSE_CATEGORIES,
+	FOLLOW_UPS,
 	GARMENTS,
 	type BlankLine,
 	type Change,
@@ -156,6 +157,8 @@ export function saveSettings(_w: World, s: Settings, _ctx: Context): Result<Chan
 	if (amounts.some((a) => !isAmount(a))) return fail('Çmimet duhet të jenë shuma jo negative.');
 	if (!(Number.isInteger(s.customPerSheet) && s.customPerSheet >= 1 && s.customPerSheet <= 100))
 		return fail('Printime të personalizuara për fletë: një numër nga 1 deri në 100.');
+	if (FOLLOW_UPS.some((k) => !s.messages?.[k]?.trim() || s.messages[k].length > 1000))
+		return fail('Çdo mesazh për klientin duhet të ketë tekst (deri në 1000 shkronja).');
 	return ok([{ put: 'settings', value: s }]);
 }
 

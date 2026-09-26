@@ -13,6 +13,7 @@ import {
 	DELIVERY_METHODS,
 	EVENTS,
 	EXPENSE_CATEGORIES,
+	FOLLOW_UPS,
 	GARMENTS,
 	ORDER_KINDS,
 	PAYMENT_METHODS,
@@ -323,7 +324,14 @@ export function parseSettings(f: Form): Result<Settings> {
 		if (!a.ok) return a;
 		courierCost[c] = a.value;
 	}
+	const messages = {} as Settings['messages'];
+	for (const stage of FOLLOW_UPS) {
+		const text = f.text(`message-${stage}`).trim();
+		if (!text) return fail('Mesazhet për klientët nuk mund të jenë bosh.');
+		messages[stage] = text;
+	}
 	return ok({
+		messages,
 		defaultPrice: s.defaultPrice!,
 		sheetPrice: s.sheetPrice!,
 		laborPerShirt: s.laborPerShirt!,

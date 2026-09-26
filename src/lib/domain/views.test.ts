@@ -94,3 +94,21 @@ describe('dtfOrder', () => {
 		expect(dtfOrder(world(), [], 0)).toEqual({ metres: 0, cost: 0 });
 	});
 });
+
+describe('followUpsView', () => {
+	it('lists clients to tell, longest waiting first, with the message', async () => {
+		const { followUpsView } = await import('./views');
+		const w0 = world({
+			orders: [
+				order({ id: 'a', code: 'HS-0001', status: 'with_courier', madeAt: T0, handedOverAt: T0 + 50, notified: { ready: T0 } }),
+				order({ id: 'b', code: 'HS-0002', status: 'ready', madeAt: T0 + 10 }),
+				order({ id: 'c', code: 'HS-0003', status: 'delivered', madeAt: T0, deliveredAt: T0, notified: { delivered: T0 } }),
+				order({ id: 'd', code: 'HS-0004' })
+			]
+		});
+		const v = followUpsView(w0);
+		expect(v.map((r) => [r.code, r.stage])).toEqual([['HS-0002', 'ready'], ['HS-0001', 'shipped']]);
+		expect(v[0].whatsapp).toBe('38344111222');
+		expect(v[0].message).toContain('HS-0002');
+	});
+});

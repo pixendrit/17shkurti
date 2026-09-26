@@ -12,6 +12,7 @@ import {
 	deleteDraft,
 	editLines,
 	removeScreenshot,
+	setNotified,
 	deleteOrder,
 	editOrder,
 	recordPayment,
@@ -332,4 +333,13 @@ describe('editLines', () => {
 
 	it('refuses once the order is made', () =>
 		expect(editLines(world({ orders: [{ ...base, status: 'ready', madeAt: T0 }] }), { orderId: 'O1', lines: [same] }, context()).ok).toBe(false));
+});
+
+describe('setNotified', () => {
+	it('records when the client was told, and can take it back', () => {
+		const w0 = world({ orders: [order({ status: 'ready', madeAt: T0 })] });
+		const w1 = run(w0, setNotified(w0, { orderId: 'O1', stage: 'ready', done: true }, context(T0 + 5)));
+		expect(w1.orders[0].notified).toEqual({ ready: T0 + 5 });
+		expect(run(w1, setNotified(w1, { orderId: 'O1', stage: 'ready', done: false }, context())).orders[0].notified).toEqual({});
+	});
 });

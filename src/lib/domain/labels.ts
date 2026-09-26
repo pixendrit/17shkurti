@@ -12,6 +12,8 @@ import type {
 	MovementReason,
 	Order,
 	OrderEvent,
+	OrderLine,
+	FollowUp,
 	OrderKind,
 	PaymentMethod,
 	Purchase,
@@ -132,3 +134,27 @@ export const subjectLabel = (w: Pick<World, 'designs' | 'prints'>, s: Subject) =
 
 /** plural : Number String String -> String — "1 bluzë", "3 bluza" */
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** lineLabel : World OrderLine -> String — "2 × Shqiponja · Oversized 200gr · E zezë · L" */
+export function lineLabel(w: Pick<World, 'designs' | 'prints'>, l: OrderLine): string {
+	const art =
+		l.artwork.kind === 'print'
+			? (w.designs.find((d) => d.id === w.prints.find((p) => p.id === (l.artwork as { printId: string }).printId)?.designId)?.name ?? 'Print')
+			: l.artwork.kind === 'custom'
+				? 'I personalizuar'
+				: 'Pa print';
+	return `${l.quantity} × ${art} · ${skuLabel(l.sku)}`;
+}
+
+export const FOLLOW_UP_LABELS: Record<FollowUp, string> = {
+	ready: 'Gati',
+	shipped: 'U nis',
+	delivered: 'U dorëzua'
+};
+
+/** What telling the client of each step is called. */
+export const FOLLOW_UP_TASKS: Record<FollowUp, string> = {
+	ready: 'Thuaji që porosia është gati',
+	shipped: 'Thuaji që u nis me postë',
+	delivered: 'Falënderoje, kërko tag'
+};

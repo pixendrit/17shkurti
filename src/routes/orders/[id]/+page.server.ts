@@ -3,7 +3,7 @@ import { addScreenshots, advance, deleteOrder, deletePayment, editOrder, recordP
 import { parseEvent, parseOrderEdit, parsePayment } from '$lib/domain/forms';
 import { ok } from '$lib/domain/result';
 import { orderView } from '$lib/domain/views';
-import { act, context, load as world, readForm, run } from '$lib/server/shop';
+import { act, context, load as world, notify, readForm, run } from '$lib/server/shop';
 
 export const load = async (event) => {
 	const v = orderView(await world(event), event.params.id);
@@ -12,6 +12,7 @@ export const load = async (event) => {
 };
 
 export const actions = {
+	notify,
 	advance: (e) =>
 		act(e, advance, (f) => {
 			const event = parseEvent(f);

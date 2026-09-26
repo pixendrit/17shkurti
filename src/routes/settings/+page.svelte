@@ -4,8 +4,9 @@
 	import FormError from '$lib/components/FormError.svelte';
 	import { busy } from '$lib/client/enhance';
 	import { divide, parseEuro } from '$lib/domain/money';
-	import { COUNTRIES, GARMENTS } from '$lib/domain/model';
-	import { money, euroInput, field, label, COUNTRY_LABELS, GARMENT_LABELS } from '$lib/ui';
+	import { COUNTRIES, FOLLOW_UPS, GARMENTS } from '$lib/domain/model';
+	import { PLACEHOLDERS } from '$lib/domain/followup';
+	import { money, euroInput, field, label, COUNTRY_LABELS, FOLLOW_UP_TASKS, GARMENT_LABELS } from '$lib/ui';
 
 	let { data, form } = $props();
 
@@ -73,6 +74,19 @@
 		<div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
 			{#each COUNTRIES as c (c)}
 				<label class="block"><span class={label}>{COUNTRY_LABELS[c]} €</span><input name="courier-{c}" bind:value={v.courier[c]} inputmode="decimal" class={field} /></label>
+			{/each}
+		</div>
+	</section>
+
+	<section class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+		<h2 class="mb-1 text-sm font-semibold text-slate-900">Mesazhet për klientët</h2>
+		<p class="mb-3 text-xs text-slate-500">
+			Teksti që del te „Njofto klientët”. Fjalët në kllapa plotësohen vetë:
+			{#each Object.entries(PLACEHOLDERS) as [k, what], i (k)}{i ? ', ' : ''}<code class="rounded bg-slate-100 px-1">{'{'}{k}{'}'}</code> {what}{/each}.
+		</p>
+		<div class="space-y-3">
+			{#each FOLLOW_UPS as s (s)}
+				<label class="block"><span class={label}>{FOLLOW_UP_TASKS[s]}</span><textarea name="message-{s}" rows="3" class={field}>{data.settings.messages[s]}</textarea></label>
 			{/each}
 		</div>
 	</section>

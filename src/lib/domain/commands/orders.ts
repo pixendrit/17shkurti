@@ -6,6 +6,8 @@ import { formatEuro, sum, type Cents } from '../money';
 import {
 	CHANNELS,
 	COUNTRIES,
+	FOLLOW_UPS,
+	type FollowUp,
 	ORDER_KINDS,
 	PAYMENT_METHODS,
 	type Change,
@@ -244,6 +246,7 @@ export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Cha
 		discount: gift ? 0 : input.discount,
 		notes: input.notes.trim(),
 		screenshots: [...(draft?.screenshots ?? []), ...shots.value.map((i) => i.id)],
+		notified: {},
 		status: 'new',
 		stockTracked: true,
 		isDemo: false,
@@ -548,4 +551,20 @@ export function deleteDraft(w: World, draftId: Id, _ctx: Context): Result<Change
 	const d = findDraft(w, draftId);
 	if (!d) return fail('Porosia e shpejtë nuk u gjet.');
 	return ok([{ delete: 'draft', id: d.id }, ...d.screenshots.map((id): Change => ({ delete: 'image', id }))]);
+}
+
+// ---- Keeping the client informed -----------------------------------------------
+
+/**
+ * setNotified : World (order, step, done) Context -> Result<[Change]>
+ * The client was told of a step (or, undone, wasn't after all).
+ */
+export function setNotified(w: World, input: { orderId: Id; stage: FollowUp; done: boolean }, ctx: Context): Result<Change[]> {
+	const o = findOrder(w, input.orderId);
+	if (!o) return fail('Porosia nuk u gjet.');
+	if (!(FOLLOW_UPS as readonly string[]).includes(input.stage)) return fail('Hap i panjohur.');
+	const notified = { ...o.notified };
+	if (input.done) notified[input.stage] = ctx.now;
+	else delete notified[input.stage];
+	return ok([{ put: 'order', value: { ...o, notified } }]);
 }

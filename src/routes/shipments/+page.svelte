@@ -25,6 +25,12 @@
 
 <FormError />
 
+{#if data.toNotify}
+	<a href="/followups" class="mb-4 flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900 hover:border-emerald-400">
+		{data.toNotify} {data.toNotify === 1 ? 'klient' : 'klientë'} për t'u njoftuar →
+	</a>
+{/if}
+
 {#snippet section(key: string, title: string, Icon: Component, tone: string, rows: OrderRow[], empty: string, action: string, buttons: [string, string, string][], money_: boolean)}
 	<section class="min-w-0 rounded-xl border border-slate-200 bg-white shadow-sm">
 		<header class="flex items-center gap-2 border-b border-slate-100 px-4 py-3">

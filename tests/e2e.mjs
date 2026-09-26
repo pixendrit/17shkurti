@@ -36,7 +36,7 @@ await p.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 10000 });
 check('logged in', !p.url().includes('/login'));
 
 // Every page renders, fast
-for (const path of ['/', '/orders', '/orders?tab=all', '/orders/new', '/shipments', '/stock', '/purchases', '/designs', '/stats', '/stats?days=0', '/settings', '/customers', '/more']) {
+for (const path of ['/', '/followups', '/orders', '/orders?tab=all', '/orders/new', '/shipments', '/stock', '/purchases', '/designs', '/stats', '/stats?days=0', '/settings', '/customers', '/more']) {
 	const t0 = Date.now();
 	const status = await go(path);
 	check(`page ${path}`, status === 200 && !(await body()).includes('Diçka shkoi keq'), `${status} in ${Date.now() - t0} ms`);
@@ -79,6 +79,16 @@ check('now ready to make', (await body()).includes('mund të bëhet tani'));
 await p.getByRole('button', { name: 'U bë — merr nga stoku' }).click(); await settle();
 t = await body();
 check('made: waiting for the courier, stock taken', t.includes('Pret postierin') && t.includes('Përdorur për porosi: Print DTF: Shqiponja · bluzë e zezë -2'), await alert());
+// The client should now hear it's ready: the message is prepared
+const saleCode = (await p.locator('h1').innerText()).trim();
+await go('/followups');
+const item = p.locator('div.px-4.py-3', { hasText: saleCode });
+check('client to tell: ready', (await item.count()) === 1 && (await item.innerText()).includes('Thuaji që porosia është gati'));
+check('message names the client and the order', (await item.innerText()).includes('Përshëndetje Test!') && (await item.innerText()).includes(saleCode));
+check('WhatsApp link with the country code', ((await item.getByRole('link', { name: 'WhatsApp' }).getAttribute('href')) ?? '').startsWith('https://wa.me/355691112233?text='));
+await item.getByRole('button', { name: 'U njoftua' }).click(); await settle();
+check('told: off the list', (await p.locator('div.px-4.py-3', { hasText: saleCode }).count()) === 0);
+
 await go('/shipments');
 const code = (await p.locator('li', { hasText: 'Test Shqipëri' }).first().innerText()).match(/HS-\d+/)?.[0];
 await p.locator('li', { hasText: code }).locator('input[type=checkbox]').check();
@@ -89,6 +99,7 @@ await p.locator('section', { hasText: 'pa u paguar' }).locator('li', { hasText: 
 await p.getByRole('button', { name: /Posta i pagoi/ }).click(); await settle();
 await go(sale);
 t = await body();
+check('order shows who was told what', t.includes('Gati · u njoftua') && t.includes('U dorëzua: duhet njoftuar'), t.slice(t.indexOf('Njoftimet'), t.indexOf('Njoftimet') + 160));
 check('delivered and paid by the courier', t.includes('E dorëzuar') && t.includes('E paguar') && t.includes('Pagesë në dorëzim 50 €'), t.slice(0, 120));
 
 // Undo: delivered -> back with the courier, and forward again
