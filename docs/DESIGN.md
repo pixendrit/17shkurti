@@ -133,6 +133,19 @@ The step due is the order's current one (ready → ready, with_courier →
 shipped, delivered → delivered) until the client is told. Only the current
 step counts: an order that jumped to delivered only needs its thanks.
 
+### Priorities (the week's plan)
+```
+Day = 'YYYY-MM-DD' (Kosovo)            Week = the Monday it starts on
+Priority = { id, week, title, note, createdAt } &
+  ( { kind: 'goal';  progress: 0..100; due: Day | null }
+  | { kind: 'daily'; from: Day; done: Day[] } )   // a box per day from `from` to Sunday
+```
+A goal is done at 100 %, late once its due day has passed; a daily priority
+scores the days ticked out of the days it covers, and past unticked days show
+as missed. Carrying over copies an unfinished priority into the next week
+(a goal keeps its progress and a passed due day moves a week on; a daily one
+starts again on Monday). Tables: `priorities`, `priority_days`.
+
 ### Status and events (the order process)
 ```
 Status = 'new' | 'in_production' | 'ready' | 'with_courier'
@@ -207,7 +220,8 @@ types say (quantities ≥ 1, artwork columns consistent with the artwork kind,
 exactly one subject per movement). All money columns are `*_cents INTEGER`.
 
 customers · designs · prints · images · orders · order_lines · payments ·
-purchases · purchase_lines · stock_movements · settings · login_attempts
+purchases · purchase_lines · stock_movements · settings · priorities ·
+priority_days · login_attempts
 
 A put writes a whole record with an upsert (never `REPLACE`, which would
 cascade-delete its lines); puts go in dependency order, then deletes in

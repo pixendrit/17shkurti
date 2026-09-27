@@ -36,7 +36,7 @@ await p.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 10000 });
 check('logged in', !p.url().includes('/login'));
 
 // Every page renders, fast
-for (const path of ['/', '/followups', '/trash', '/orders', '/orders?tab=all', '/orders/new', '/shipments', '/stock', '/purchases', '/designs', '/stats', '/stats?days=0', '/settings', '/customers', '/more']) {
+for (const path of ['/', '/followups', '/trash', '/orders', '/orders?tab=all', '/orders/new', '/shipments', '/stock', '/purchases', '/designs', '/stats', '/stats?days=0', '/settings', '/customers', '/more', '/priorities']) {
 	const t0 = Date.now();
 	const status = await go(path);
 	check(`page ${path}`, status === 200 && !(await body()).includes('Diçka shkoi keq'), `${status} in ${Date.now() - t0} ms`);
@@ -287,9 +287,34 @@ check('search finds by name', (await body()).includes('Test Influencer'));
 await go('/customers?q=Influencer');
 check('customer listed', (await body()).includes('Test Influencer'));
 
+// Priorities: a goal moved to done, a daily one ticked for today, one carried to next week
+await go('/priorities');
+const thisWeek = p.locator('section', { hasText: 'Këtë javë' });
+const addPriority = async (section, kind, title) => {
+	await section.getByRole('button', { name: 'Shto prioritet' }).click();
+	if (kind === 'daily') await section.getByRole('button', { name: 'Çdo ditë' }).click();
+	await section.getByLabel('Prioriteti').fill(title);
+	await section.getByRole('button', { name: 'Shto', exact: true }).click(); await settle();
+};
+await addPriority(thisWeek, 'goal', 'Test qëllim');
+const goal = thisWeek.locator('div.rounded-xl', { hasText: 'Test qëllim' });
+check('goal added at 0%', (await goal.innerText()).includes('0%'), await alert());
+await goal.getByRole('button', { name: 'U krye' }).click(); await settle();
+check('goal marked done', norm(await goal.innerText()).includes('100%') && !(await goal.getByRole('button', { name: 'U krye' }).count()), await alert());
+await addPriority(thisWeek, 'daily', 'Test çdo ditë');
+const daily = thisWeek.locator('div.rounded-xl', { hasText: 'Test çdo ditë' });
+await daily.locator('button[aria-pressed=false]:not([disabled])').last().click(); await settle();
+check('today ticked on the daily priority', (await daily.locator('button[aria-pressed=true]').count()) === 1, await alert());
+await go('/');
+check('dashboard shows the week\'s priorities', (await body()).includes('Test çdo ditë'));
+await go('/priorities');
+await addPriority(thisWeek, 'goal', 'Test për javën tjetër');
+await thisWeek.locator('div.rounded-xl', { hasText: 'Test për javën tjetër' }).getByRole('button', { name: 'Kaloje në javën tjetër' }).click(); await settle();
+check('priority carried to next week', (await p.locator('section', { hasText: 'Java tjetër' }).innerText()).includes('Test për javën tjetër'), await alert());
+
 // Mobile: no page scrolls sideways
 await p.setViewportSize({ width: 390, height: 844 });
-for (const path of ['/', '/orders', '/orders/new', '/orders/quick', sale, '/shipments', '/stock', '/purchases', '/designs', '/stats', '/settings', '/customers']) {
+for (const path of ['/', '/orders', '/orders/new', '/orders/quick', sale, '/shipments', '/stock', '/purchases', '/designs', '/stats', '/settings', '/customers', '/priorities']) {
 	await go(path);
 	const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 	check(`mobile ${path.slice(0, 20)} fits`, over <= 0, `${over}px over`);

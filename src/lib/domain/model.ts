@@ -204,6 +204,22 @@ export type Draft = {
 	screenshots: Id[];
 };
 
+// ---- Priorities -------------------------------------------------------------
+
+/** Day: a calendar day in Kosovo, as "2026-09-28". */
+export type Day = string;
+
+/**
+ * Priority: something the shop commits to for a week (the week is named by
+ * its Monday).
+ *   goal:  done once: progress 0–100, maybe a due day
+ *   daily: done every day from `from` to Sunday: the days it was done
+ */
+export type Priority = { id: Id; week: Day; title: string; note: string; createdAt: Instant } & (
+	| { kind: 'goal'; progress: number; due: Day | null }
+	| { kind: 'daily'; from: Day; done: Day[] }
+);
+
 // ---- Payments ---------------------------------------------------------------
 
 export const PAYMENT_METHODS = ['cod', 'bank', 'cash'] as const;
@@ -311,6 +327,7 @@ export type World = {
 	drafts: Draft[];
 	/** Orders in the trash, newest first. Everything above leaves them out. */
 	trash: Trashed[];
+	priorities: Priority[];
 };
 
 /**
@@ -331,7 +348,11 @@ export type Change =
 	| { put: 'movement'; value: Movement }
 	| { put: 'settings'; value: Settings }
 	| { put: 'draft'; value: Draft }
-	| { delete: 'order' | 'payment' | 'purchase' | 'movement' | 'image' | 'design' | 'print' | 'customer' | 'draft'; id: Id };
+	| { put: 'priority'; value: Priority }
+	| {
+			delete: 'order' | 'payment' | 'purchase' | 'movement' | 'image' | 'design' | 'print' | 'customer' | 'draft' | 'priority';
+			id: Id;
+	  };
 
 /** Context: what a command needs from outside — the time, and fresh ids. */
 export type Context = { now: Instant; newId: () => Id };
@@ -346,5 +367,6 @@ export const emptyWorld = (): World => ({
 	purchases: [],
 	movements: [],
 	drafts: [],
-	trash: []
+	trash: [],
+	priorities: []
 });

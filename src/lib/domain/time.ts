@@ -113,3 +113,36 @@ export function startOfDay(t: Instant): Instant {
 	const utcMidnight = Date.UTC(l.year, l.month, l.day) / 1000;
 	return utcMidnight - offset(utcMidnight);
 }
+
+/**
+ * addDays : String Number -> String
+ * The day n days after (or before) a day.   addDays("2026-09-28", 6) -> "2026-10-04"
+ */
+export function addDays(day: string, n: number): string {
+	const d = new Date(`${day}T12:00:00Z`);
+	d.setUTCDate(d.getUTCDate() + n);
+	return d.toISOString().slice(0, 10);
+}
+
+/**
+ * weekOf : String -> String
+ * The Monday of the week a day falls in.   "2026-09-27" (a Sunday) -> "2026-09-21"
+ */
+export function weekOf(day: string): string {
+	const dow = new Date(`${day}T12:00:00Z`).getUTCDay(); // 0 = Sunday
+	return addDays(day, dow === 0 ? -6 : 1 - dow);
+}
+
+const WEEKDAYS = ['E diel', 'E hënë', 'E martë', 'E mërkurë', 'E enjte', 'E premte', 'E shtunë'];
+
+/** weekdayLabel : String -> String — "E hënë" */
+export const weekdayLabel = (day: string) => WEEKDAYS[new Date(`${day}T12:00:00Z`).getUTCDay()];
+
+/** dayLabel : String -> String — "28 sht" */
+export function dayLabel(day: string): string {
+	const [, m, d] = day.split('-').map(Number);
+	return `${d} ${MONTHS[m - 1]}`;
+}
+
+/** weekLabel : String -> String — "28 sht – 4 tet" */
+export const weekLabel = (monday: string) => `${dayLabel(monday)} – ${dayLabel(addDays(monday, 6))}`;

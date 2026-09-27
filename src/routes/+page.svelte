@@ -2,6 +2,8 @@
 	import StatTile from '$lib/components/StatTile.svelte';
 	import OrderList from '$lib/components/OrderList.svelte';
 	import DraftList from '$lib/components/DraftList.svelte';
+	import PriorityCard from '$lib/components/PriorityCard.svelte';
+	import Target from '@lucide/svelte/icons/target';
 	import FollowUpItem from '$lib/components/FollowUpItem.svelte';
 	import FormError from '$lib/components/FormError.svelte';
 	import MessageCircle from '@lucide/svelte/icons/message-circle';
@@ -38,6 +40,18 @@
 		</a>
 	</div>
 </div>
+
+{#if data.priorities.items.length}
+	<section class="mb-4">
+		<div class="mb-2 flex items-baseline justify-between">
+			<h2 class="flex items-center gap-1.5 text-sm font-semibold text-slate-900"><Target class="size-4 text-slate-500" /> Prioritetet e javës</h2>
+			<a href="/priorities" class="text-xs font-medium text-slate-600 underline">Të gjitha</a>
+		</div>
+		<div class="grid gap-3 md:grid-cols-2">
+			{#each data.priorities.items as p (p.id)}<PriorityCard {p} compact />{/each}
+		</div>
+	</section>
+{/if}
 
 <DraftList drafts={data.drafts} />
 

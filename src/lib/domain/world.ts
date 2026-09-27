@@ -20,7 +20,8 @@ export function apply(w: World, changes: readonly Change[]): World {
 		purchases: [...w.purchases],
 		movements: [...w.movements],
 		drafts: [...w.drafts],
-		trash: [...w.trash]
+		trash: [...w.trash],
+		priorities: [...w.priorities]
 	};
 	const put = <T extends { id: Id }>(list: T[], value: T) => {
 		const i = list.findIndex((x) => x.id === value.id);
@@ -43,6 +44,7 @@ export function apply(w: World, changes: readonly Change[]): World {
 				case 'movement': put(next.movements, c.value); break;
 				case 'settings': next.settings = c.value; break;
 				case 'draft': put(next.drafts, c.value); break;
+				case 'priority': put(next.priorities, c.value); break;
 				case 'image': break; // pictures aren't part of the world
 			}
 		} else {
@@ -58,6 +60,7 @@ export function apply(w: World, changes: readonly Change[]): World {
 				case 'print': drop(next.prints, c.id); break;
 				case 'customer': drop(next.customers, c.id); break;
 				case 'draft': drop(next.drafts, c.id); break;
+				case 'priority': drop(next.priorities, c.id); break;
 				case 'image': break;
 			}
 		}

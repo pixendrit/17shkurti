@@ -2,6 +2,7 @@
 	import ChartLine from '@lucide/svelte/icons/chart-line';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Users from '@lucide/svelte/icons/users';
+	import Target from '@lucide/svelte/icons/target';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import Palette from '@lucide/svelte/icons/palette';
@@ -11,6 +12,7 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 
 	const links = [
+		{ href: '/priorities', label: 'Prioritetet', hint: 'Qëllimet e javës dhe çfarë bëhet çdo ditë', icon: Target },
 		{ href: '/stats', label: 'Statistika', hint: 'Fitimi, burimet, shtetet', icon: ChartLine },
 		{ href: '/purchases', label: 'Blerjet', hint: 'Bluza, fletë DTF, shpenzime', icon: Receipt },
 		{ href: '/followups', label: 'Njofto klientët', hint: 'Gati, u nis, u dorëzua: mesazhet', icon: MessageCircle },

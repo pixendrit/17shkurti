@@ -17,12 +17,14 @@
 	import Lock from '@lucide/svelte/icons/lock';
 	import Download from '@lucide/svelte/icons/download';
 	import Zap from '@lucide/svelte/icons/zap';
+	import Target from '@lucide/svelte/icons/target';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	let { children } = $props();
 
 	const nav = [
 		{ href: '/', label: 'Paneli', icon: LayoutDashboard },
+		{ href: '/priorities', label: 'Prioritetet', icon: Target },
 		{ href: '/orders', label: 'Porositë', icon: ShoppingBag },
 		{ href: '/shipments', label: 'Dërgesat', icon: Truck },
 		{ href: '/stock', label: 'Stoku', icon: Boxes },
