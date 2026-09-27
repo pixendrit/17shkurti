@@ -110,7 +110,7 @@ export function ordersView(w: World, tab: OrderTab, q: string) {
 		.sort(newestFirst)
 		.map((o) => ({ ...orderRow(w, o, customers), canMake: plan.get(o.id)?.ready ?? null }))
 		.filter((r) => matches(q, r));
-	return { tab, q, counts, rows, total: sum(rows, (r) => r.total), drafts: draftsView(w) };
+	return { tab, q, counts, rows, total: sum(rows, (r) => r.total), drafts: draftsView(w), trashCount: w.trash.length };
 }
 
 /** needLabel : World Need -> String — "3 × Oversized 200gr · E zezë · M" */
@@ -421,4 +421,13 @@ export function orderFollowUps(w: World, o: Order) {
 		message: due ? message(w, o, c, due) : null,
 		steps: FOLLOW_UPS.map((stage) => ({ stage, reachedAt: reachedAt(o, stage), notifiedAt: o.notified[stage] ?? null }))
 	};
+}
+
+// ---- Trash -------------------------------------------------------------------------
+
+/** trashView : World -> orders in the trash, newest first, as list rows */
+export function trashView(w: World) {
+	const customers = customerMap(w);
+	const everyone = { ...w, orders: [...w.orders, ...w.trash.map((t) => t.order)], payments: [...w.payments, ...w.trash.flatMap((t) => t.payments)] };
+	return w.trash.map((t) => ({ ...orderRow(everyone, t.order, customers), deletedAt: t.order.deletedAt ?? 0, paid: sum(t.payments, (p) => p.amount) }));
 }

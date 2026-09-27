@@ -25,6 +25,7 @@ import {
 	type OrderKind,
 	type OrderLine,
 	type Draft,
+	type Trashed,
 	type PaymentMethod,
 	type Sku,
 	type Upload,
@@ -35,7 +36,7 @@ import { step } from '../process';
 import { fail, ok, type Result } from '../result';
 import { needs, onHand, shortfall, subjectKey } from '../stock';
 import type { Instant } from '../time';
-import { apply, customerByPhone, findCustomer, findDraft, findOrder, nextCode } from '../world';
+import { apply, customerByPhone, findCustomer, findDraft, findOrder, findTrashed, nextCode } from '../world';
 import { isAmount, isCount, storeImage } from './common';
 
 // ---- Inputs -----------------------------------------------------------------
@@ -235,7 +236,7 @@ export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Cha
 	const [customer, customerChanges] = resolveCustomer(w, who.value, null, ctx);
 	const order: Order = {
 		id: ctx.newId(),
-		code: nextCode(w.orders),
+		code: nextCode([...w.orders, ...w.trash.map((t) => t.order)]),
 		customerId: customer.id,
 		kind: input.kind,
 		channel: input.channel,
@@ -255,7 +256,8 @@ export function createOrder(w: World, input: NewOrder, ctx: Context): Result<Cha
 		handedOverAt: null,
 		deliveredAt: null,
 		returnedAt: null,
-		cancelledAt: null
+		cancelledAt: null,
+		deletedAt: null
 	};
 	changes.push(...customerChanges, { put: 'order', value: order });
 	if (draft) changes.push({ delete: 'draft', id: draft.id });
@@ -351,20 +353,55 @@ export const imagesOf = (o: Order): Id[] => [
 ];
 
 /**
- * deleteOrder : World Id Context -> Result<[Change]>
- * Removes an order as if it never happened: its payments, its pictures, and
- * its stock movements go too, so what it took is back on the shelf.
+ * trashOrder : World Id Context -> Result<[Change]>
+ * Puts an order in the trash. It keeps everything (payments, stock it took,
+ * pictures) but counts for nothing until restored; its shirts are back on
+ * the shelf meanwhile.
  */
-export function deleteOrder(w: World, orderId: Id, _ctx: Context): Result<Change[]> {
+export function trashOrder(w: World, orderId: Id, ctx: Context): Result<Change[]> {
 	const o = findOrder(w, orderId);
 	if (!o) return fail('Porosia nuk u gjet.');
-	return ok([
-		...w.payments.filter((p) => p.orderId === o.id).map((p): Change => ({ delete: 'payment', id: p.id })),
-		...w.movements.filter((m) => m.orderId === o.id).map((m): Change => ({ delete: 'movement', id: m.id })),
-		{ delete: 'order', id: o.id },
-		...imagesOf(o).map((id): Change => ({ delete: 'image', id }))
-	]);
+	return ok([{ put: 'order', value: { ...o, deletedAt: ctx.now } }]);
 }
+
+/**
+ * restoreOrder : World Id Context -> Result<[Change]>
+ * Takes an order out of the trash, as it was. Refused if the shirts it had
+ * taken were used for something else meanwhile: the shelf can't go below zero.
+ */
+export function restoreOrder(w: World, orderId: Id, _ctx: Context): Result<Change[]> {
+	const t = findTrashed(w, orderId);
+	if (!t) return fail('Porosia nuk është në kosh.');
+	const have = onHand([...w.movements, ...t.movements]);
+	const short = t.movements.find((m) => (have.get(subjectKey(m.subject)) ?? 0) < 0);
+	if (short)
+		return fail(`${t.order.code} nuk rikthehet: ${subjectLabel(w, short.subject)} që kishte marrë janë përdorur për porosi të tjera.`);
+	return ok([{ put: 'order', value: { ...t.order, deletedAt: null } }]);
+}
+
+/**
+ * purgeOrder : World Id Context -> Result<[Change]>
+ * Deletes an order in the trash for good: its payments, pictures and stock
+ * movements go with it. Only from the trash, so nothing is lost by one tap.
+ */
+export function purgeOrder(w: World, orderId: Id, _ctx: Context): Result<Change[]> {
+	const t = findTrashed(w, orderId);
+	if (!t) return fail('Porosia nuk është në kosh.');
+	return ok(purge(t));
+}
+
+/** emptyTrash : World _ Context -> Result<[Change]> — everything in the trash, for good. */
+export function emptyTrash(w: World, _input: null, _ctx: Context): Result<Change[]> {
+	if (w.trash.length === 0) return fail('Koshi është bosh.');
+	return ok(w.trash.flatMap(purge));
+}
+
+const purge = (t: Trashed): Change[] => [
+	...t.payments.map((p): Change => ({ delete: 'payment', id: p.id })),
+	...t.movements.map((m): Change => ({ delete: 'movement', id: m.id })),
+	{ delete: 'order', id: t.order.id },
+	...imagesOf(t.order).map((id): Change => ({ delete: 'image', id }))
+];
 
 // ---- Moving an order along ---------------------------------------------------
 

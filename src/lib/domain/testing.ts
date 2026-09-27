@@ -47,6 +47,7 @@ export const order = (over: Partial<Order> = {}): Order => ({
 	deliveredAt: null,
 	returnedAt: null,
 	cancelledAt: null,
+	deletedAt: null,
 	...over
 });
 

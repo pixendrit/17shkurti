@@ -169,7 +169,16 @@ export type Order = {
 	deliveredAt: Instant | null;
 	returnedAt: Instant | null;
 	cancelledAt: Instant | null;
+	/** Put in the trash: counts for nothing until restored. */
+	deletedAt: Instant | null;
 };
+
+/**
+ * Trashed: an order in the trash, with the payments and stock movements it
+ * owns. They stay stored, so restoring brings everything back, but they
+ * count for nothing: not in lists, money, follow-ups or on the shelf.
+ */
+export type Trashed = { order: Order; payments: Payment[]; movements: Movement[] };
 
 export const FOLLOW_UPS = ['ready', 'shipped', 'delivered'] as const;
 /**
@@ -300,6 +309,8 @@ export type World = {
 	purchases: Purchase[];
 	movements: Movement[];
 	drafts: Draft[];
+	/** Orders in the trash, newest first. Everything above leaves them out. */
+	trash: Trashed[];
 };
 
 /**
@@ -334,5 +345,6 @@ export const emptyWorld = (): World => ({
 	payments: [],
 	purchases: [],
 	movements: [],
-	drafts: []
+	drafts: [],
+	trash: []
 });

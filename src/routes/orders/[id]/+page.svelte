@@ -19,6 +19,7 @@
 	import Gift from '@lucide/svelte/icons/gift';
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import X from '@lucide/svelte/icons/x';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import MessageSquare from '@lucide/svelte/icons/message-square';
 	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import FollowUpItem from '$lib/components/FollowUpItem.svelte';
@@ -366,8 +367,8 @@
 			</section>
 		{/if}
 
-		<form method="POST" action="?/delete" use:enhance={busy({ confirm: 'Ta fshij përgjithmonë këtë porosi? Pagesat fshihen dhe stoku kthehet.' })}>
-			<button class="w-full rounded-lg px-3 py-2 text-xs font-medium text-slate-400 hover:text-red-600">Fshi porosinë</button>
+		<form method="POST" action="?/trash" use:enhance={busy()}>
+			<button class="inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 class="size-3.5" /> Fshi porosinë (në kosh)</button>
 		</form>
 	</div>
 </div>

@@ -26,6 +26,7 @@ import {
 	type Subject,
 	type World
 } from '../domain/model';
+import { separateTrash } from '../domain/world';
 
 type Row = Record<string, unknown>;
 type Value = string | number | null;
@@ -108,7 +109,8 @@ export function toWorld(r: Record<keyof typeof READS, Row[]>): World {
 		purchaseLines.set(str(l.purchase_id), list);
 	}
 
-	return {
+	return separateTrash({
+		trash: [],
 		settings,
 		customers: r.customers.map(
 			(c): Customer => ({
@@ -172,7 +174,7 @@ export function toWorld(r: Record<keyof typeof READS, Row[]>): World {
 				at: num(m.at)
 			})
 		)
-	};
+	});
 }
 
 const toSku = (r: Row) => ({
@@ -228,7 +230,8 @@ function toOrder(o: Row, lines: OrderLine[], screenshots: string[]): Order {
 		handedOverAt: opt(o.handed_over_at),
 		deliveredAt: opt(o.delivered_at),
 		returnedAt: opt(o.returned_at),
-		cancelledAt: opt(o.cancelled_at)
+		cancelledAt: opt(o.cancelled_at),
+		deletedAt: opt(o.deleted_at)
 	};
 }
 
@@ -269,7 +272,7 @@ const COLS = {
 	orders: [
 		'id', 'code', 'customer_id', 'kind', 'channel', 'delivery_method', 'delivery_cost_cents', 'tracking_ref',
 		'packaging_cents', 'shipping_charged_cents', 'discount_cents', 'notes', 'status', 'stock_tracked', 'is_demo',
-		'created_at', 'made_at', 'handed_over_at', 'delivered_at', 'returned_at', 'cancelled_at'
+		'created_at', 'made_at', 'handed_over_at', 'delivered_at', 'returned_at', 'cancelled_at', 'deleted_at'
 	],
 	order_lines: [
 		'id', 'order_id', 'position', 'garment', 'color', 'size', 'artwork', 'print_id', 'front_image_id',
@@ -346,7 +349,7 @@ function rowsOf(c: Extract<Change, { put: string }>): [Table, Value[]][] {
 				['orders', [
 					o.id, o.code, o.customerId, o.kind, o.channel, d.method, d.cost, d.method === 'courier' ? d.trackingRef : '',
 					o.packaging, o.shippingCharged, o.discount, o.notes, o.status, b(o.stockTracked), b(o.isDemo),
-					o.createdAt, o.madeAt, o.handedOverAt, o.deliveredAt, o.returnedAt, o.cancelledAt
+					o.createdAt, o.madeAt, o.handedOverAt, o.deliveredAt, o.returnedAt, o.cancelledAt, o.deletedAt
 				]],
 				...o.lines.map((l, i): [Table, Value[]] => {
 					const a = l.artwork;

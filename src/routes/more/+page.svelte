@@ -2,6 +2,7 @@
 	import ChartLine from '@lucide/svelte/icons/chart-line';
 	import Receipt from '@lucide/svelte/icons/receipt';
 	import Users from '@lucide/svelte/icons/users';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import MessageCircle from '@lucide/svelte/icons/message-circle';
 	import Palette from '@lucide/svelte/icons/palette';
 	import Settings from '@lucide/svelte/icons/settings';
@@ -15,7 +16,8 @@
 		{ href: '/followups', label: 'Njofto klientët', hint: 'Gati, u nis, u dorëzua: mesazhet', icon: MessageCircle },
 		{ href: '/customers', label: 'Klientët', hint: 'Kush blen, sa shpesh', icon: Users },
 		{ href: '/designs', label: 'Dizajnet', hint: 'Fotot para dhe pas', icon: Palette },
-		{ href: '/settings', label: 'Cilësimet', hint: 'Kostot dhe çmimet', icon: Settings }
+		{ href: '/settings', label: 'Cilësimet', hint: 'Kostot dhe çmimet', icon: Settings },
+		{ href: '/trash', label: 'Koshi', hint: 'Porositë e fshira: rikthe ose fshi përgjithmonë', icon: Trash2 }
 	];
 </script>
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addScreenshots, advance, createDraft, createOrder, deleteDraft, deleteOrder, editLines, recordPayment, removeScreenshot, setNotified, setPrintReady } from '$lib/domain/commands/orders';
+import { addScreenshots, advance, createDraft, createOrder, deleteDraft, editLines, purgeOrder, restoreOrder, trashOrder, recordPayment, removeScreenshot, setNotified, setPrintReady } from '$lib/domain/commands/orders';
 import { createDesign, setPrintImage } from '$lib/domain/commands/catalog';
 import { clearDemo, countStock, deletePurchase, recordPurchase, saveSettings } from '$lib/domain/commands/stock';
 import { DEFAULT_SETTINGS, emptyWorld, type Change, type World } from '$lib/domain/model';
@@ -36,7 +36,8 @@ function sortLike(actual: World, expected: World): World {
 		payments: order(actual.payments, expected.payments),
 		purchases: order(actual.purchases, expected.purchases),
 		movements: order(actual.movements, expected.movements),
-		drafts: order(actual.drafts, expected.drafts)
+		drafts: order(actual.drafts, expected.drafts),
+		trash: actual.trash.map((t) => expected.trash.find((e) => e.order.id === t.order.id) ?? t)
 	};
 }
 
@@ -114,8 +115,14 @@ describe('repository', () => {
 
 		// Deleting the purchase that the order used is refused; the order can go.
 		expect(deletePurchase(w, w.purchases[0].id, ctx()).ok).toBe(false);
-		w = await roundTrip(db, w, deleteOrder(w, o.id, ctx()));
+		w = await roundTrip(db, w, trashOrder(w, o.id, ctx(400)));
 		expect(w.orders).toEqual([]);
+		expect(w.trash).toHaveLength(1);
+		w = await roundTrip(db, w, restoreOrder(w, o.id, ctx()));
+		expect(w.orders).toHaveLength(1);
+		w = await roundTrip(db, w, trashOrder(w, o.id, ctx(500)));
+		w = await roundTrip(db, w, purgeOrder(w, o.id, ctx()));
+		expect(w.trash).toEqual([]);
 		w = await roundTrip(db, w, deletePurchase(w, w.purchases[0].id, ctx()));
 
 		// Every picture still stored is still used by something.

@@ -2,6 +2,11 @@
 	import StatusBadge from '$lib/components/StatusBadge.svelte';
 	import Empty from '$lib/components/Empty.svelte';
 	import DraftList from '$lib/components/DraftList.svelte';
+	import FormError from '$lib/components/FormError.svelte';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
+	import { enhance } from '$app/forms';
+	import { goto } from '$app/navigation';
+	import { busy } from '$lib/client/enhance';
 	import Zap from '@lucide/svelte/icons/zap';
 	import { money, formatDate, plural, CHANNEL_LABELS } from '$lib/ui';
 	import { ORDER_TABS, ORDER_TAB_LABELS } from '$lib/domain/views';
@@ -30,6 +35,18 @@
 	</div>
 </div>
 
+{#if data.justTrashed}
+	<div class="mb-4 flex items-center gap-3 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm" role="status">
+		<Trash2 class="size-4 shrink-0 text-slate-500" />
+		<span class="flex-1"><b>{data.justTrashed.code}</b> u hodh në kosh.</span>
+		<form method="POST" action="?/restore" use:enhance={busy({ after: () => goto('/orders', { replaceState: true }) })}>
+			<input type="hidden" name="orderId" value={data.justTrashed.id} />
+			<button class="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">Zhbëj</button>
+		</form>
+	</div>
+{/if}
+<FormError />
+
 <DraftList drafts={data.drafts} />
 
 <form class="mb-3 flex gap-2" data-sveltekit-keepfocus action="/orders">
@@ -56,6 +73,10 @@
 {/if}
 
 <p class="mb-2 text-right text-xs text-slate-500">{plural(data.rows.length, 'porosi', 'porosi')} · {money(data.total)}</p>
+
+{#if data.trashCount}
+	<p class="mb-2 text-right text-xs"><a href="/trash" class="inline-flex items-center gap-1 text-slate-500 hover:text-slate-900"><Trash2 class="size-3.5" /> Koshi ({data.trashCount})</a></p>
+{/if}
 
 {#if data.rows.length === 0}
 	<div class="rounded-xl border border-slate-200 bg-white">

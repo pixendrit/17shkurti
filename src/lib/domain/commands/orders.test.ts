@@ -13,7 +13,10 @@ import {
 	editLines,
 	removeScreenshot,
 	setNotified,
-	deleteOrder,
+	emptyTrash,
+	purgeOrder,
+	restoreOrder,
+	trashOrder,
 	editOrder,
 	recordPayment,
 	settle,
@@ -252,15 +255,57 @@ describe('editOrder', () => {
 	});
 });
 
-describe('deleteOrder', () => {
-	it('takes its payments and stock movements with it', () => {
+describe('trash', () => {
+	const made = () => {
 		const w0 = world({ orders: [order({ lines: [line()] })], movements: [stock(blackM, 1), stock(printB, 1)] });
 		const w1 = run(w0, advance(w0, { orderId: 'O1', event: 'make' }, context()));
-		const w2 = run(w1, recordPayment(w1, { orderId: 'O1', amount: null, method: 'cash', receivedAt: null }, context(T0 + 1, 'p')));
-		const w3 = run(w2, deleteOrder(w2, 'O1', context()));
-		expect(w3.orders).toEqual([]);
-		expect(w3.payments).toEqual([]);
-		expect(onHand(w3.movements).get('blank:oversized_200g/black/M')).toBe(1);
+		return run(w1, recordPayment(w1, { orderId: 'O1', amount: null, method: 'cash', receivedAt: null }, context(T0 + 1, 'p')));
+	};
+
+	it('a trashed order counts for nothing: its stock is back, its payment gone from the books', () => {
+		const w = made();
+		const t = run(w, trashOrder(w, 'O1', context(T0 + 9)));
+		expect(t.orders).toEqual([]);
+		expect(t.payments).toEqual([]);
+		expect(onHand(t.movements).get('blank:oversized_200g/black/M')).toBe(1);
+		expect(t.trash).toEqual([expect.objectContaining({ order: expect.objectContaining({ id: 'O1', deletedAt: T0 + 9 }) })]);
+		expect(t.trash[0].payments).toHaveLength(1);
+	});
+
+	it('restoring brings it all back', () => {
+		const w = made();
+		const t = run(w, trashOrder(w, 'O1', context()));
+		const r = run(t, restoreOrder(t, 'O1', context()));
+		expect(r.orders[0]).toMatchObject({ id: 'O1', status: 'ready', deletedAt: null });
+		expect(r.payments).toHaveLength(1);
+		expect(onHand(r.movements).get('blank:oversized_200g/black/M')).toBe(0);
+		expect(r.trash).toEqual([]);
+	});
+
+	it('won’t restore once its shirts went to another order', () => {
+		const w = made();
+		const t = run(w, trashOrder(w, 'O1', context()));
+		const other = { ...t, orders: [order({ id: 'O2', code: 'HS-0002', lines: [line()] })] };
+		const used = run(other, advance(other, { orderId: 'O2', event: 'make' }, context(T0, 'x')));
+		expect(restoreOrder(used, 'O1', context())).toMatchObject({ ok: false, error: expect.stringMatching(/përdorur/) });
+	});
+
+	it('deletes for good only from the trash, with everything it owns', () => {
+		const w = made();
+		expect(purgeOrder(w, 'O1', context()).ok).toBe(false);
+		const t = run(w, trashOrder(w, 'O1', context()));
+		const gone = run(t, purgeOrder(t, 'O1', context()));
+		expect(gone.trash).toEqual([]);
+		expect(gone.orders).toEqual([]);
+		const r = emptyTrash(t, null, context());
+		expect(r.ok && r.value.filter((c) => 'delete' in c).map((c) => ('delete' in c ? c.delete : ''))).toEqual(['payment', 'movement', 'movement', 'order']);
+	});
+
+	it('a new order never reuses a code that is in the trash', () => {
+		const w = made();
+		const t = run(w, trashOrder(w, 'O1', context()));
+		const n = run(t, createOrder(t, input(), context(T0, 'n')));
+		expect(n.orders[0].code).toBe('HS-0002');
 	});
 });
 
@@ -299,8 +344,10 @@ describe('screenshots on an order', () => {
 		expect(run(w1, r).orders[0].screenshots).toEqual(['id2']);
 		expect(r.ok && r.value).toContainEqual({ delete: 'image', id: 'id1' });
 	});
-	it('deleting the order deletes its screenshots', () => {
-		const r = deleteOrder(world({ orders: [order({ screenshots: ['s1'] })] }), 'O1', context());
+	it('deleting the order for good deletes its screenshots', () => {
+		const w0 = world({ orders: [order({ screenshots: ['s1'] })] });
+		const t = run(w0, trashOrder(w0, 'O1', context()));
+		const r = purgeOrder(t, 'O1', context());
 		expect(r.ok && r.value).toContainEqual({ delete: 'image', id: 's1' });
 	});
 });

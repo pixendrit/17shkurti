@@ -113,6 +113,16 @@ that stays the same shirt keeps its cost snapshot; a new or changed one
 costs what it costs today. Once made, its shirts came off the shelf and
 stay.
 
+### The trash
+```
+Order.deletedAt: Instant | null
+World.trash: { order, payments, movements }[]   // everything else leaves them out
+```
+Deleting puts an order in the trash with everything it owns; it counts for
+nothing (lists, money, follow-ups, the shelf) until restored. Restoring is
+refused if the shirts it had taken were used meanwhile. Deleting for good
+happens only from the trash.
+
 ### Keeping clients informed
 ```
 FollowUp = 'ready' | 'shipped' | 'delivered'

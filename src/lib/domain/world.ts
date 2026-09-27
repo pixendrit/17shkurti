@@ -1,7 +1,7 @@
 /**
  * Looking things up in the world, and applying changes to it.
  */
-import type { Change, Customer, Id, Order, World } from './model';
+import type { Change, Customer, Id, Order, Trashed, World } from './model';
 
 /**
  * apply : World [Change] -> World
@@ -19,7 +19,8 @@ export function apply(w: World, changes: readonly Change[]): World {
 		payments: [...w.payments],
 		purchases: [...w.purchases],
 		movements: [...w.movements],
-		drafts: [...w.drafts]
+		drafts: [...w.drafts],
+		trash: [...w.trash]
 	};
 	const put = <T extends { id: Id }>(list: T[], value: T) => {
 		const i = list.findIndex((x) => x.id === value.id);
@@ -36,7 +37,7 @@ export function apply(w: World, changes: readonly Change[]): World {
 				case 'customer': put(next.customers, c.value); break;
 				case 'design': put(next.designs, c.value); break;
 				case 'print': put(next.prints, c.value); break;
-				case 'order': put(next.orders, c.value); break;
+				case 'order': putOrder(next, c.value); break;
 				case 'payment': put(next.payments, c.value); break;
 				case 'purchase': put(next.purchases, c.value); break;
 				case 'movement': put(next.movements, c.value); break;
@@ -46,7 +47,10 @@ export function apply(w: World, changes: readonly Change[]): World {
 			}
 		} else {
 			switch (c.delete) {
-				case 'order': drop(next.orders, c.id); break;
+				case 'order':
+					drop(next.orders, c.id);
+					next.trash = next.trash.filter((t) => t.order.id !== c.id);
+					break;
 				case 'payment': drop(next.payments, c.id); break;
 				case 'purchase': drop(next.purchases, c.id); break;
 				case 'movement': drop(next.movements, c.id); break;
@@ -61,7 +65,36 @@ export function apply(w: World, changes: readonly Change[]): World {
 	return next;
 }
 
+/**
+ * putOrder : World Order -> void (updates the world being built)
+ * An order put with deletedAt goes to the trash, taking its payments and
+ * stock movements with it; put back without, it comes out with them.
+ */
+function putOrder(w: World, o: Order) {
+	const inTrash = w.trash.find((t) => t.order.id === o.id);
+	if (o.deletedAt != null) {
+		const owned = <T extends { orderId: Id | null }>(xs: T[]) => xs.filter((x) => x.orderId === o.id);
+		const entry: Trashed = inTrash
+			? { ...inTrash, order: o }
+			: { order: o, payments: owned(w.payments), movements: owned(w.movements) };
+		w.orders = w.orders.filter((x) => x.id !== o.id);
+		w.payments = w.payments.filter((p) => p.orderId !== o.id);
+		w.movements = w.movements.filter((m) => m.orderId !== o.id);
+		w.trash = [entry, ...w.trash.filter((t) => t.order.id !== o.id)];
+		return;
+	}
+	if (inTrash) {
+		w.trash = w.trash.filter((t) => t.order.id !== o.id);
+		w.payments = [...w.payments, ...inTrash.payments];
+		w.movements = [...w.movements, ...inTrash.movements];
+	}
+	const i = w.orders.findIndex((x) => x.id === o.id);
+	if (i >= 0) w.orders[i] = o;
+	else w.orders.push(o);
+}
+
 export const findOrder = (w: World, id: Id) => w.orders.find((o) => o.id === id);
+export const findTrashed = (w: World, id: Id) => w.trash.find((t) => t.order.id === id);
 export const findCustomer = (w: World, id: Id) => w.customers.find((c) => c.id === id);
 export const findDesign = (w: World, id: Id) => w.designs.find((d) => d.id === id);
 export const findPrint = (w: World, id: Id) => w.prints.find((p) => p.id === id);
@@ -91,4 +124,30 @@ export function customerByPhone(w: World, phone: string): Customer | undefined {
 export function nextCode(orders: readonly Order[]): string {
 	const max = orders.reduce((m, o) => Math.max(m, Number(/(\d+)$/.exec(o.code)?.[1] ?? 0)), 0);
 	return `HS-${String(max + 1).padStart(4, '0')}`;
+}
+
+/**
+ * separateTrash : World -> World
+ * The world as stored has trashed orders among the rest: move them, with
+ * their payments and stock movements, into `trash`, newest first.
+ */
+export function separateTrash(w: World): World {
+	const trashed = new Set(w.orders.filter((o) => o.deletedAt != null).map((o) => o.id));
+	if (trashed.size === 0) return w;
+	return {
+		...w,
+		orders: w.orders.filter((o) => !trashed.has(o.id)),
+		payments: w.payments.filter((p) => !trashed.has(p.orderId)),
+		movements: w.movements.filter((m) => !m.orderId || !trashed.has(m.orderId)),
+		trash: [
+			...w.trash,
+			...w.orders
+				.filter((o) => trashed.has(o.id))
+				.map((order) => ({
+					order,
+					payments: w.payments.filter((p) => p.orderId === order.id),
+					movements: w.movements.filter((m) => m.orderId === order.id)
+				}))
+		].sort((a, b) => (b.order.deletedAt ?? 0) - (a.order.deletedAt ?? 0))
+	};
 }

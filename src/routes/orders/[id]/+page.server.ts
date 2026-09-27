@@ -1,5 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
-import { addScreenshots, advance, deleteOrder, deletePayment, editOrder, recordPayment, removeScreenshot, setPrintReady } from '$lib/domain/commands/orders';
+import { addScreenshots, advance, trashOrder, deletePayment, editOrder, recordPayment, removeScreenshot, setPrintReady } from '$lib/domain/commands/orders';
 import { parseEvent, parseOrderEdit, parsePayment } from '$lib/domain/forms';
 import { ok } from '$lib/domain/result';
 import { orderView } from '$lib/domain/views';
@@ -33,10 +33,10 @@ export const actions = {
 	removeShot: (e) => act(e, removeScreenshot, (f) => ok({ orderId: e.params.id, imageId: f.text('imageId') })),
 	printReady: (e) =>
 		act(e, setPrintReady, (f) => ok({ orderId: e.params.id, lineId: f.text('lineId'), ready: f.text('ready') === '1' })),
-	delete: async (e) => {
+	trash: async (e) => {
 		await readForm(e.request);
-		const r = await run(e.locals.db, deleteOrder, e.params.id, context());
+		const r = await run(e.locals.db, trashOrder, e.params.id, context());
 		if (!r.ok) return fail(400, { error: r.error });
-		throw redirect(303, '/orders');
+		throw redirect(303, `/orders?trashed=${e.params.id}`);
 	}
 };

@@ -17,6 +17,7 @@
 	import Lock from '@lucide/svelte/icons/lock';
 	import Download from '@lucide/svelte/icons/download';
 	import Zap from '@lucide/svelte/icons/zap';
+	import Trash2 from '@lucide/svelte/icons/trash-2';
 
 	let { children } = $props();
 
@@ -30,7 +31,8 @@
 		{ href: '/customers', label: 'Klientët', icon: Users },
 		{ href: '/designs', label: 'Dizajnet', icon: Palette },
 		{ href: '/stats', label: 'Statistika', icon: ChartLine },
-		{ href: '/settings', label: 'Cilësimet', icon: Settings }
+		{ href: '/settings', label: 'Cilësimet', icon: Settings },
+		{ href: '/trash', label: 'Koshi', icon: Trash2 }
 	];
 
 	// The phone bar has room for five: the daily ones, and the rest behind "more".

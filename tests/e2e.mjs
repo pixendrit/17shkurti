@@ -36,7 +36,7 @@ await p.waitForURL((u) => !u.pathname.startsWith('/login'), { timeout: 10000 });
 check('logged in', !p.url().includes('/login'));
 
 // Every page renders, fast
-for (const path of ['/', '/followups', '/orders', '/orders?tab=all', '/orders/new', '/shipments', '/stock', '/purchases', '/designs', '/stats', '/stats?days=0', '/settings', '/customers', '/more']) {
+for (const path of ['/', '/followups', '/trash', '/orders', '/orders?tab=all', '/orders/new', '/shipments', '/stock', '/purchases', '/designs', '/stats', '/stats?days=0', '/settings', '/customers', '/more']) {
 	const t0 = Date.now();
 	const status = await go(path);
 	check(`page ${path}`, status === 200 && !(await body()).includes('Diçka shkoi keq'), `${status} in ${Date.now() - t0} ms`);
@@ -171,10 +171,33 @@ await p.getByLabel('Printi').first().selectOption({ label: 'Shqiponja' });
 await p.getByRole('button', { name: 'Ruaj porosinë' }).click();
 await p.waitForURL(/\/orders\/[0-9a-f-]{36}$/);
 check('same phone, same customer: history shown', (await body()).includes('Porositë e tjera të klientit (1)'));
-await p.getByRole('button', { name: 'Fshi porosinë' }).click({ trial: false }).catch(() => {});
+const doomed = p.url().replace(B, '');
+const doomedCode = (await p.locator('h1').innerText()).trim();
+// Delete: it goes to the trash, with an undo right there
+await p.getByRole('button', { name: /Fshi porosinë/ }).click();
+await p.waitForURL(/\/orders\?trashed=/); await settle();
+check('deleted order offers undo', (await body()).includes(`${doomedCode} u hodh në kosh`));
+await p.getByRole('button', { name: 'Zhbëj' }).click(); await settle();
+await go(doomed);
+check('undo brings it back', (await body()).includes(doomedCode) && !(await body()).includes('Faqja nuk u gjet'));
+// Delete again, find it in the trash, restore it from there
+await p.getByRole('button', { name: /Fshi porosinë/ }).click();
+await p.waitForURL(/\/orders\?trashed=/); await settle();
+await go('/orders?tab=all');
+check('a trashed order is out of the lists', !(await body()).includes(doomedCode));
+await go('/trash');
+check('it waits in the trash', (await body()).includes(doomedCode));
+await p.locator('li', { hasText: doomedCode }).getByRole('button', { name: 'Rikthe' }).click(); await settle();
+await go('/orders?tab=all');
+check('restored from the trash', (await body()).includes(doomedCode));
+// And finally for good
+await go(doomed);
+await p.getByRole('button', { name: /Fshi porosinë/ }).click();
+await p.waitForURL(/\/orders\?trashed=/); await settle();
+await go('/trash');
 p.once('dialog', (d) => d.accept());
-await p.getByRole('button', { name: 'Fshi porosinë' }).click(); await p.waitForURL(/\/orders$/);
-check('order deleted', p.url().endsWith('/orders'));
+await p.locator('li', { hasText: doomedCode }).getByRole('button', { name: 'Fshi përgjithmonë' }).click(); await settle();
+check('deleted for good', !(await body()).includes(doomedCode) && (await body()).includes('Koshi është bosh'));
 
 // A quick order: screenshots now, details later
 await go('/orders/quick');
