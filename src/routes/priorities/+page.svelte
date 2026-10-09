@@ -36,7 +36,9 @@
 			{#each w.items as p (p.id)}
 				<PriorityCard {p} {canCarry} />
 			{/each}
-			{#if adding === w.monday}
+			{#if w.monday < data.thisWeek.monday}
+				<!-- a past week: nothing more to add -->
+			{:else if adding === w.monday}
 				<form method="POST" action="?/create" use:enhance={busy({ after: () => (adding = null) })} class="space-y-3 rounded-xl border border-slate-900 bg-white p-4 shadow-sm">
 					<input type="hidden" name="week" value={w.monday} />
 					<input type="hidden" name="kind" value={kind} />

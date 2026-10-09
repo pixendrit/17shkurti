@@ -5,7 +5,14 @@ import type { Change, Context, Day, Id, Priority, World } from './model';
 import { fail, ok, type Result } from './result';
 import { addDays, dayInput, parseDay, weekOf, type Instant } from './time';
 
-const isDay = (d: string) => parseDay(d) != null;
+/** Strictly "YYYY-MM-DD", and a real day: no spaces, no "2026-9-1", no "2026-02-30". */
+const isDay = (d: unknown): d is Day => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && parseDay(d) != null;
+
+/** A goal's due day: none, or a day not before its week. The error, or null if it's fine. */
+const badDue = (due: Day | null, week: Day) =>
+	!due ? null : !isDay(due) ? 'Afati nuk është datë (VVVV-MM-DD).' : due < week ? 'Afati nuk mund të jetë para javës.' : null;
+
+const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 // ---- Commands -------------------------------------------------------------------
 
@@ -20,19 +27,21 @@ export type PriorityInput = {
 
 /**
  * createPriority : World PriorityInput Context -> Result<[Change]>
- * A priority for a week. A daily one runs from its first day to Sunday.
+ * A priority for this week or a later one. A daily one runs from its first day to Sunday.
  */
 export function createPriority(_w: World, input: PriorityInput, ctx: Context): Result<Change[]> {
 	const title = input.title.trim();
 	if (!title) return fail('Shkruani prioritetin.');
 	if (!isDay(input.week) || weekOf(input.week) !== input.week) return fail('Java e panjohur.');
+	if (input.week < weekOf(dayInput(ctx.now))) return fail('Kjo javë ka kaluar.');
 	const base = { id: ctx.newId(), week: input.week, title, note: input.note.trim(), createdAt: ctx.now };
 	if (input.kind === 'daily') {
 		const from = input.from || input.week;
 		if (!isDay(from) || weekOf(from) !== input.week) return fail('Dita e fillimit duhet të jetë brenda javës.');
 		return ok([{ put: 'priority', value: { ...base, kind: 'daily', from, done: [] } }]);
 	}
-	if (input.due && !isDay(input.due)) return fail('Afati nuk është datë.');
+	const bad = badDue(input.due, input.week);
+	if (bad) return fail(bad);
 	return ok([{ put: 'priority', value: { ...base, kind: 'goal', progress: 0, due: input.due || null } }]);
 }
 
@@ -46,11 +55,15 @@ export function setProgress(w: World, input: { id: Id; progress: number }, _ctx:
 	return ok([{ put: 'priority', value: { ...p, progress: input.progress } }]);
 }
 
-/** toggleDay : World (id, day) Context -> Result<[Change]> — a daily priority done that day, or not after all. */
-export function toggleDay(w: World, input: { id: Id; day: Day }, _ctx: Context): Result<Change[]> {
+/**
+ * toggleDay : World (id, day) Context -> Result<[Change]>
+ * A daily priority done that day, or not after all. Only its own days, and not ones still to come.
+ */
+export function toggleDay(w: World, input: { id: Id; day: Day }, ctx: Context): Result<Change[]> {
 	const p = find(w, input.id);
 	if (!p || p.kind !== 'daily') return fail('Prioriteti nuk u gjet.');
 	if (!daysOf(p).includes(input.day)) return fail('Kjo ditë nuk është pjesë e prioritetit.');
+	if (input.day > dayInput(ctx.now)) return fail('Kjo ditë nuk ka ardhur ende.');
 	const done = p.done.includes(input.day) ? p.done.filter((d) => d !== input.day) : [...p.done, input.day].sort();
 	return ok([{ put: 'priority', value: { ...p, done } }]);
 }
@@ -61,7 +74,8 @@ export function editPriority(w: World, input: { id: Id; title: string; note: str
 	if (!p) return fail('Prioriteti nuk u gjet.');
 	const title = input.title.trim();
 	if (!title) return fail('Shkruani prioritetin.');
-	if (p.kind === 'goal' && input.due && !isDay(input.due)) return fail('Afati nuk është datë.');
+	const bad = p.kind === 'goal' ? badDue(input.due, p.week) : null;
+	if (bad) return fail(bad);
 	const next: Priority = p.kind === 'goal' ? { ...p, title, note: input.note.trim(), due: input.due || null } : { ...p, title, note: input.note.trim() };
 	return ok([{ put: 'priority', value: next }]);
 }
@@ -70,11 +84,14 @@ export function editPriority(w: World, input: { id: Id; title: string; note: str
  * carryOver : World Id Context -> Result<[Change]>
  * An unfinished priority, again next week: a goal keeps its progress (its
  * due day moves a week on if it had passed); a daily one starts again Monday.
+ * Not a finished one, and not twice (same title already next week).
  */
 export function carryOver(w: World, id: Id, ctx: Context): Result<Change[]> {
 	const p = find(w, id);
 	if (!p) return fail('Prioriteti nuk u gjet.');
+	if (standing(p, dayInput(ctx.now)).status === 'done') return fail('Ky prioritet është kryer.');
 	const week = addDays(p.week, 7);
+	if (w.priorities.some((q) => q.week === week && sameTitle(q.title, p.title))) return fail('Ky prioritet është tashmë në javën tjetër.');
 	const base = { id: ctx.newId(), week, title: p.title, note: p.note, createdAt: ctx.now };
 	const next: Priority =
 		p.kind === 'goal'
@@ -100,7 +117,7 @@ export function daysOf(p: Extract<Priority, { kind: 'daily' }>): Day[] {
 /**
  * Status: how a priority stands today.
  *   done:    finished (goal at 100%, or every day ticked)
- *   late:    a goal past its due day, or a daily one with a missed day
+ *   late:    a goal past its due day (or its week's Sunday, without one), or a daily one with a missed day
  *   ongoing: anything else
  */
 export type Status = 'done' | 'late' | 'ongoing';
@@ -112,7 +129,8 @@ export type Status = 'done' | 'late' | 'ongoing';
  */
 export function standing(p: Priority, today: Day) {
 	if (p.kind === 'goal') {
-		const status: Status = p.progress >= 100 ? 'done' : p.due && p.due < today ? 'late' : 'ongoing';
+		const deadline = p.due || addDays(p.week, 6);
+		const status: Status = p.progress >= 100 ? 'done' : deadline < today ? 'late' : 'ongoing';
 		return { status, score: p.progress, total: 100, days: [] as { day: Day; state: 'done' | 'missed' | 'today' | 'future' }[] };
 	}
 	const days = daysOf(p).map((day) => ({

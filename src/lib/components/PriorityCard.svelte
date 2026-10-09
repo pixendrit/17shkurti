@@ -18,8 +18,9 @@
 	}: { p: Priority & { status: 'done' | 'late' | 'ongoing'; score: number; total: number; days: DayState[] }; compact?: boolean; canCarry?: boolean } = $props();
 
 	let editing = $state(false);
-	// Follows the saved progress; dragging overrides it until the next save.
+	// Follows the saved progress; dragging overrides it until the next save (or back, if that fails).
 	let slider = $derived(p.kind === 'goal' ? p.progress : 0);
+	const revert = () => (slider = p.kind === 'goal' ? p.progress : 0);
 
 	const tone = { done: 'border-emerald-300 bg-emerald-50/60', late: 'border-rose-300 bg-rose-50/50', ongoing: 'border-slate-200 bg-white' };
 	const box = {
@@ -36,7 +37,7 @@
 			<input type="hidden" name="id" value={p.id} />
 			<input name="title" value={p.title} required class={field} aria-label="Prioriteti" />
 			<input name="note" value={p.note} placeholder="Shënim" class={field} aria-label="Shënim" />
-			{#if p.kind === 'goal'}<label class="block"><span class={label}>Afati</span><input type="date" name="due" value={p.due ?? ''} class={field} /></label>{/if}
+			{#if p.kind === 'goal'}<label class="block"><span class={label}>Afati</span><input type="date" name="due" min={p.week} value={p.due ?? ''} class={field} /></label>{/if}
 			<div class="flex flex-wrap gap-2">
 				<button class={primary}>Ruaj</button>
 				<button type="button" onclick={() => (editing = false)} class={secondary}>Anulo</button>
@@ -75,7 +76,7 @@
 		</div>
 
 		{#if p.kind === 'goal'}
-			<form method="POST" action="/priorities?/progress" use:enhance={busy({ reset: false })} class="mt-3 flex items-center gap-3">
+			<form method="POST" action="/priorities?/progress" use:enhance={busy({ reset: false, failed: revert })} class="mt-3 flex items-center gap-3">
 				<input type="hidden" name="id" value={p.id} />
 				<input type="range" name="progress" min="0" max="100" step="1" bind:value={slider} onchange={(e) => e.currentTarget.form?.requestSubmit()} class="flex-1 accent-emerald-600" aria-label="Përparimi" />
 				<span class="tabular w-11 text-right text-sm font-semibold {slider >= 100 ? 'text-emerald-700' : 'text-slate-900'}">{slider}%</span>

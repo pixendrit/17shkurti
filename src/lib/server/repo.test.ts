@@ -7,6 +7,7 @@ import type { Result } from '$lib/domain/result';
 import { blank } from '$lib/domain/stock';
 import { context, sku, T0 } from '$lib/domain/testing';
 import { apply } from '$lib/domain/world';
+import { parseDay } from '$lib/domain/time';
 import { carryOver, createPriority, deletePriority, setProgress, toggleDay } from '$lib/domain/priorities';
 import { commit, getImage, loadWorld, statements } from './repo';
 import { asD1, sqliteD1 } from './sqlite-d1';
@@ -128,14 +129,15 @@ describe('repository', () => {
 		w = await roundTrip(db, w, deletePurchase(w, w.purchases[0].id, ctx()));
 
 		// Priorities: a goal and a daily one, ticked, carried over, deleted.
-		w = await roundTrip(db, w, createPriority(w, { week: '2026-09-28', title: 'Website live', note: '', kind: 'goal', due: '2026-10-04', from: null }, ctx()));
-		w = await roundTrip(db, w, createPriority(w, { week: '2026-09-28', title: '1 dizajn në ditë', note: '', kind: 'daily', due: null, from: null }, ctx()));
+		const sep30 = parseDay('2026-09-30')! - T0; // ticking needs the day to have come
+		w = await roundTrip(db, w, createPriority(w, { week: '2026-09-28', title: 'Website live', note: '', kind: 'goal', due: '2026-10-04', from: null }, ctx(sep30)));
+		w = await roundTrip(db, w, createPriority(w, { week: '2026-09-28', title: '1 dizajn në ditë', note: '', kind: 'daily', due: null, from: null }, ctx(sep30)));
 		const daily = w.priorities.find((p) => p.kind === 'daily')!;
-		w = await roundTrip(db, w, toggleDay(w, { id: daily.id, day: '2026-09-29' }, ctx()));
-		w = await roundTrip(db, w, toggleDay(w, { id: daily.id, day: '2026-09-28' }, ctx()));
-		w = await roundTrip(db, w, setProgress(w, { id: w.priorities[0].id, progress: 60 }, ctx()));
-		w = await roundTrip(db, w, carryOver(w, w.priorities[0].id, ctx()));
-		w = await roundTrip(db, w, deletePriority(w, daily.id, ctx()));
+		w = await roundTrip(db, w, toggleDay(w, { id: daily.id, day: '2026-09-29' }, ctx(sep30)));
+		w = await roundTrip(db, w, toggleDay(w, { id: daily.id, day: '2026-09-28' }, ctx(sep30)));
+		w = await roundTrip(db, w, setProgress(w, { id: w.priorities[0].id, progress: 60 }, ctx(sep30)));
+		w = await roundTrip(db, w, carryOver(w, w.priorities[0].id, ctx(sep30)));
+		w = await roundTrip(db, w, deletePriority(w, daily.id, ctx(sep30)));
 		expect(w.priorities.map((p) => p.week)).toEqual(['2026-09-28', '2026-10-05']);
 
 		// Every picture still stored is still used by something.
